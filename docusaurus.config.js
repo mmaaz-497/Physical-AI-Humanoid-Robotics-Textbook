@@ -12,7 +12,7 @@ const config = {
   url: 'https://mmaaz-497.github.io',
   baseUrl: '/Physical-AI-Humanoid-Robotics-Textbook/',
 
-  organizationName: 'Muhammad Maaz',
+  organizationName: 'mmaaz-497',
   projectName: 'Physical-AI-Humanoid-Robotics-Textbook',
 
   onBrokenLinks: 'throw',
