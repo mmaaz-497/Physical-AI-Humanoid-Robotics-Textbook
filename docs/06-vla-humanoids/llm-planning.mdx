@@ -1,0 +1,290 @@
+---
+id: llm-planning
+title: LLM Planning
+sidebar_label: LLM Planning
+sidebar_position: 3
+description: Using large language models for robot task planning and high-level reasoning
+keywords: [LLM, task planning, GPT-4, reasoning, chain-of-thought, prompt engineering]
+---
+
+# LLM Planning
+
+## Introduction
+
+Large language models enable robots to perform high-level task planning, breaking down complex commands into executable sub-tasks. LLM planning leverages reasoning capabilities to handle novel scenarios without explicit programming.
+
+**Learning Objectives:**
+- Use LLMs for hierarchical task decomposition
+- Implement chain-of-thought prompting for robot planning
+- Integrate LLM planners with motion planning
+- Handle failure recovery with LLM reasoning
+- Deploy LLMs efficiently on edge devices
+
+## Theory
+
+### LLM Planning Architecture
+
+```
+User Goal → LLM Planner → Task Sequence → Motion Planner → Robot Execution
+("Clean table") (GPT-4)     (Pick, Wipe)   (Trajectories)  (Controllers)
+```
+
+**Planning Hierarchy:**
+
+1. **High-level**: LLM generates abstract plan
+2. **Mid-level**: Task planner sequences actions
+3. **Low-level**: Motion planner computes trajectories
+
+**LLM Advantages:**
+- **Zero-shot generalization**: Handle new tasks without retraining
+- **Common-sense reasoning**: Understand physical constraints
+- **Natural language**: No specialized syntax required
+- **Failure recovery**: Generate alternative plans
+
+### Prompt Engineering for Planning
+
+**Chain-of-Thought (CoT) Prompting:**
+
+```
+Standard Prompt:
+"Pick up the cup"
+→ Direct action (may fail in complex scenarios)
+
+Chain-of-Thought Prompt:
+"Pick up the cup. Think step-by-step:
+1. What do I need to do first?
+2. What are the preconditions?
+3. What could go wrong?"
+→ Reasoned plan with error handling
+```
+
+## Implementation
+
+### Basic LLM Task Planner
+
+```python
+from openai import OpenAI
+
+class LLMPlanner:
+    def __init__(self):
+        self.client = OpenAI()
+
+    def plan_task(self, goal: str, scene_description: str):
+        """Generate task plan from natural language goal"""
+        prompt = f"""
+        You are a robot task planner. Generate a step-by-step plan.
+
+        Scene: {scene_description}
+        Goal: {goal}
+
+        Available actions:
+        - navigate(location)
+        - pick(object)
+        - place(object, location)
+        - open(container)
+        - close(container)
+
+        Think step-by-step and output a JSON plan:
+        {{
+            "reasoning": "why this plan works",
+            "steps": [
+                {{"action": "navigate", "args": ["table"]}},
+                {{"action": "pick", "args": ["cup"]}}
+            ],
+            "preconditions": ["cup is visible", "gripper is empty"],
+            "failure_cases": ["cup too heavy", "path blocked"]
+        }}
+        """
+
+        response = self.client.chat.completions.create(
+            model="gpt-4o",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.2  # Lower for more deterministic plans
+        )
+
+        return self.parse_plan(response.choices[0].message.content)
+
+    def parse_plan(self, llm_output):
+        """Extract structured plan from LLM response"""
+        import json, re
+        match = re.search(r'\{.*\}', llm_output, re.DOTALL)
+        if match:
+            return json.loads(match.group())
+        return None
+
+# Example usage
+planner = LLMPlanner()
+plan = planner.plan_task(
+    goal="Bring me the red cup from the kitchen",
+    scene_description="Robot in living room. Kitchen has table with red cup, blue plate."
+)
+
+print(plan['steps'])
+# [{'action': 'navigate', 'args': ['kitchen']},
+#  {'action': 'pick', 'args': ['red cup']},
+#  {'action': 'navigate', 'args': ['living room']},
+#  {'action': 'place', 'args': ['red cup', 'user']}]
+```
+
+### ReAct Pattern (Reasoning + Acting)
+
+```python
+class ReActPlanner:
+    def __init__(self):
+        self.client = OpenAI()
+        self.history = []
+
+    def step(self, observation: str):
+        """Single reasoning-action step"""
+        prompt = f"""
+        Previous actions: {self.history}
+        Current observation: {observation}
+
+        Thought: What should I do next and why?
+        Action: <action_name>(args)
+
+        Format as JSON:
+        {{"thought": "...", "action": "...", "args": [...]}}
+        """
+
+        response = self.client.chat.completions.create(
+            model="gpt-4o",
+            messages=[{"role": "user", "content": prompt}]
+        )
+
+        step = self.parse_step(response.choices[0].message.content)
+        self.history.append(step)
+        return step
+
+    def execute_task(self, goal: str, max_steps=10):
+        """Execute task with ReAct loop"""
+        observation = f"Goal: {goal}. Starting state: robot at origin."
+
+        for i in range(max_steps):
+            step = self.step(observation)
+
+            print(f"Thought: {step['thought']}")
+            print(f"Action: {step['action']}")
+
+            # Execute action and get new observation
+            result = robot.execute(step['action'], step['args'])
+            observation = result['observation']
+
+            if result['done']:
+                print("Task completed!")
+                break
+
+# Usage
+react = ReActPlanner()
+react.execute_task("Clean the table")
+```
+
+### Integration with Motion Planning
+
+```python
+class HierarchicalPlanner:
+    def __init__(self):
+        self.llm_planner = LLMPlanner()
+        self.motion_planner = MotionPlanner()  # MoveIt, OMPL, etc.
+
+    def execute_plan(self, goal: str, scene: str):
+        """Execute LLM plan with motion planning"""
+        # High-level plan from LLM
+        task_plan = self.llm_planner.plan_task(goal, scene)
+
+        # Execute each step with motion planning
+        for step in task_plan['steps']:
+            action = step['action']
+            args = step['args']
+
+            if action == 'pick':
+                object_name = args[0]
+                # LLM: what to pick
+                # Motion planner: how to pick it
+                grasp_pose = self.vision.detect_object(object_name)
+                trajectory = self.motion_planner.plan_grasp(grasp_pose)
+                self.robot.execute(trajectory)
+
+            elif action == 'navigate':
+                location = args[0]
+                path = self.motion_planner.plan_path(location)
+                self.robot.execute(path)
+```
+
+## Advanced Techniques
+
+### Few-Shot Prompting
+
+```python
+def few_shot_planning(goal: str):
+    """Provide examples to improve planning"""
+    prompt = f"""
+    Example 1:
+    Goal: "Make coffee"
+    Plan: [navigate(kitchen), pick(mug), place(mug, coffee_maker), press(start_button)]
+
+    Example 2:
+    Goal: "Set the table"
+    Plan: [pick(plate), place(plate, table), pick(fork), place(fork, table), ...]
+
+    Now plan this:
+    Goal: "{goal}"
+    Plan:
+    """
+    return llm.generate(prompt)
+```
+
+### Error Recovery
+
+```python
+class ErrorRecoveryPlanner:
+    def handle_failure(self, failed_action, error_msg):
+        """Ask LLM to generate recovery plan"""
+        prompt = f"""
+        Action failed: {failed_action}
+        Error: {error_msg}
+
+        Suggest recovery steps:
+        """
+
+        recovery_plan = llm.generate(prompt)
+        return recovery_plan
+
+# Example
+try:
+    robot.pick("cup")
+except GraspFailure as e:
+    recovery = planner.handle_failure("pick(cup)", str(e))
+    # LLM suggests: "Try grasping from different angle" or "Use two hands"
+```
+
+### Edge Deployment with Quantization
+
+```python
+from transformers import AutoModelForCausalLM, BitsAndBytesConfig
+
+# Load 4-bit quantized model for Jetson
+quantization_config = BitsAndBytesConfig(
+    load_in_4bit=True,
+    bnb_4bit_compute_dtype=torch.float16
+)
+
+model = AutoModelForCausalLM.from_pretrained(
+    "meta-llama/Llama-3-8B",
+    quantization_config=quantization_config,
+    device_map="auto"
+)
+
+# Inference on Jetson Orin: ~2 tokens/sec
+```
+
+## Summary
+
+LLM planning enables robots to perform high-level reasoning and task decomposition using natural language. Chain-of-thought prompting and ReAct patterns improve planning quality. Integration with motion planners creates hierarchical systems where LLMs handle "what" and motion planners handle "how". Quantization enables edge deployment on devices like Jetson Orin.
+
+## Further Reading
+
+- [ReAct: Reasoning and Acting with LLMs](https://arxiv.org/abs/2210.03629)
+- [Chain-of-Thought Prompting](https://arxiv.org/abs/2201.11903)
+- [SayCan: Grounding Language in Robotic Affordances](https://say-can.github.io/)
+- [LLM-Planner for Robotics](https://arxiv.org/abs/2302.11550)

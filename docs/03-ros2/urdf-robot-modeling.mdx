@@ -1,0 +1,243 @@
+---
+id: urdf-robot-modeling
+title: URDF Robot Modeling
+sidebar_label: URDF Robot Modeling
+sidebar_position: 4
+description: Create robot models using URDF
+keywords: [URDF, robot modeling, kinematics, XML]
+---
+
+# URDF Robot Modeling
+
+## Introduction
+
+URDF (Unified Robot Description Format) is an XML format for describing robot geometry, kinematics, dynamics, and visual properties for simulation and visualization.
+
+**Learning Objectives:**
+- Understand URDF structure (links, joints, sensors)
+- Create a simple robot model from scratch
+- Visualize robots in RViz
+- Add sensors and collision geometry
+
+## What is URDF?
+
+URDF describes:
+- **Links**: Robot body parts (chassis, wheels, arms)
+- **Joints**: Connections between links (revolute, prismatic, fixed)
+- **Visual**: How the robot looks (meshes, colors)
+- **Collision**: Simplified geometry for physics
+- **Inertial**: Mass, center of mass, inertia tensor
+
+## Basic URDF Structure
+
+```xml
+<?xml version="1.0"?>
+<robot name="my_robot">
+  <!-- Links -->
+  <link name="base_link">
+    <visual>
+      <geometry>
+        <box size="0.5 0.3 0.1"/>
+      </geometry>
+      <material name="blue">
+        <color rgba="0 0 1 1"/>
+      </material>
+    </visual>
+  </link>
+
+  <!-- Joints -->
+  <joint name="base_to_wheel" type="continuous">
+    <parent link="base_link"/>
+    <child link="wheel_link"/>
+    <origin xyz="0 0 -0.1" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+  </joint>
+
+  <link name="wheel_link">
+    <visual>
+      <geometry>
+        <cylinder radius="0.05" length="0.02"/>
+      </geometry>
+    </visual>
+  </link>
+</robot>
+```
+
+## Joint Types
+
+| Type | Description | Example |
+|------|-------------|---------|
+| `fixed` | No movement | Camera mount |
+| `revolute` | Rotation with limits | Robot elbow |
+| `continuous` | Unlimited rotation | Wheel |
+| `prismatic` | Linear sliding | Elevator |
+| `floating` | 6 DOF free movement | Quadrotor |
+
+## Simple Mobile Robot Example
+
+```xml
+<?xml version="1.0"?>
+<robot name="simple_robot">
+  <!-- Base Link -->
+  <link name="base_link">
+    <visual>
+      <geometry>
+        <box size="0.6 0.4 0.2"/>
+      </geometry>
+      <material name="gray">
+        <color rgba="0.5 0.5 0.5 1"/>
+      </material>
+    </visual>
+    <collision>
+      <geometry>
+        <box size="0.6 0.4 0.2"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="10"/>
+      <inertia ixx="0.1" ixy="0" ixz="0" iyy="0.1" iyz="0" izz="0.1"/>
+    </inertial>
+  </link>
+
+  <!-- Left Wheel -->
+  <joint name="left_wheel_joint" type="continuous">
+    <parent link="base_link"/>
+    <child link="left_wheel"/>
+    <origin xyz="0 0.25 0" rpy="-1.57 0 0"/>
+    <axis xyz="0 0 1"/>
+  </joint>
+
+  <link name="left_wheel">
+    <visual>
+      <geometry>
+        <cylinder radius="0.1" length="0.05"/>
+      </geometry>
+      <material name="black">
+        <color rgba="0 0 0 1"/>
+      </material>
+    </visual>
+  </link>
+
+  <!-- Right Wheel (similar structure) -->
+  <!-- ... -->
+</robot>
+```
+
+## Visualizing in RViz
+
+```bash
+# Install joint_state_publisher_gui
+sudo apt install ros-humble-joint-state-publisher-gui
+
+# Launch RViz with URDF
+ros2 launch urdf_tutorial display.launch.py model:=my_robot.urdf
+```
+
+## Adding Sensors
+
+### Camera
+
+```xml
+<link name="camera_link">
+  <visual>
+    <geometry>
+      <box size="0.05 0.05 0.05"/>
+    </geometry>
+  </visual>
+</link>
+
+<joint name="camera_joint" type="fixed">
+  <parent link="base_link"/>
+  <child link="camera_link"/>
+  <origin xyz="0.3 0 0.1" rpy="0 0 0"/>
+</joint>
+```
+
+### LiDAR
+
+```xml
+<link name="lidar_link">
+  <visual>
+    <geometry>
+      <cylinder radius="0.05" length="0.07"/>
+    </geometry>
+  </visual>
+</link>
+
+<joint name="lidar_joint" type="fixed">
+  <parent link="base_link"/>
+  <child link="lidar_link"/>
+  <origin xyz="0 0 0.15" rpy="0 0 0"/>
+</joint>
+```
+
+## URDF Best Practices
+
+1. **Use descriptive names**: `left_wheel_joint` not `joint_1`
+2. **Add collision geometry**: Simplified shapes for physics
+3. **Include inertial properties**: Required for Gazebo simulation
+4. **Check with `check_urdf`**: Validates XML structure
+
+```bash
+# Validate URDF
+check_urdf my_robot.urdf
+
+# Convert to graphical tree
+urdf_to_graphiz my_robot.urdf
+```
+
+## Xacro: Programmable URDF
+
+Xacro adds macros and variables to reduce repetition:
+
+```xml
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="robot">
+  <!-- Define properties -->
+  <xacro:property name="wheel_radius" value="0.1"/>
+  <xacro:property name="wheel_width" value="0.05"/>
+
+  <!-- Wheel macro -->
+  <xacro:macro name="wheel" params="prefix reflect">
+    <link name="${prefix}_wheel">
+      <visual>
+        <geometry>
+          <cylinder radius="${wheel_radius}" length="${wheel_width}"/>
+        </geometry>
+      </visual>
+    </link>
+    <joint name="${prefix}_wheel_joint" type="continuous">
+      <parent link="base_link"/>
+      <child link="${prefix}_wheel"/>
+      <origin xyz="0 ${reflect * 0.25} 0" rpy="-1.57 0 0"/>
+      <axis xyz="0 0 1"/>
+    </joint>
+  </xacro:macro>
+
+  <!-- Use macro -->
+  <xacro:wheel prefix="left" reflect="1"/>
+  <xacro:wheel prefix="right" reflect="-1"/>
+</robot>
+```
+
+Convert Xacro to URDF:
+
+```bash
+xacro robot.urdf.xacro > robot.urdf
+```
+
+## Exercises
+
+1. Create a simple robot with a base and two wheels
+2. Add a camera sensor to your robot
+3. Visualize your robot in RViz
+4. Convert your URDF to Xacro with macros for repeated parts
+
+## Summary
+
+URDF describes robot structure using links (parts) and joints (connections). RViz visualizes URDF models, and Xacro simplifies complex robot descriptions with macros.
+
+## Further Reading
+
+- [URDF Tutorials](https://docs.ros.org/en/humble/Tutorials/URDF/URDF-Main.html)
+- [Xacro Documentation](http://wiki.ros.org/xacro)

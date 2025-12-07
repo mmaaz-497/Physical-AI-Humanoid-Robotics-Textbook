@@ -1,0 +1,424 @@
+---
+id: unity-ros-integration
+title: Unity-ROS Integration
+sidebar_label: Unity-ROS Integration
+sidebar_position: 5
+description: Integrating Unity game engine with ROS 2 for photorealistic robot simulation and visualization
+keywords: [unity, ros2, tcp connector, simulation, visualization, game engine, robotics]
+---
+
+# Unity-ROS Integration
+
+## Introduction
+
+Unity, a powerful game engine, provides photorealistic rendering, physics simulation, and cross-platform deployment capabilities that complement traditional robotics simulators. Unity-ROS integration enables developers to leverage Unity's visual fidelity for robot perception training, human-robot interaction visualization, and reinforcement learning.
+
+**Learning Objectives:**
+- Understand Unity's advantages for robotics simulation
+- Set up Unity with ROS 2 TCP Connector
+- Exchange messages between Unity and ROS 2
+- Build a simple robot visualization in Unity
+- Use Unity for synthetic data generation
+
+## Theory
+
+### Why Unity for Robotics?
+
+**Visual Quality:**
+- Photorealistic rendering (lighting, shadows, reflections)
+- High-quality asset ecosystem (3D models, textures, animations)
+- Real-time ray tracing (HDRP)
+
+**Cross-Platform:**
+- Windows, macOS, Linux
+- VR/AR support (HoloLens, Quest, HTC Vive)
+- Mobile deployment (iOS, Android)
+
+**Ecosystem:**
+- Unity ML-Agents for reinforcement learning
+- Perception package for synthetic data labeling
+- Vast community and Asset Store
+
+**When to Use Unity:**
+- Vision algorithm training (object detection, segmentation)
+- Human-robot interaction scenarios
+- Reinforcement learning training
+- Photorealistic visualization and demonstrations
+
+### Unity vs Gazebo
+
+| Feature | Unity | Gazebo |
+|---------|-------|--------|
+| **Graphics** | Photorealistic, game-quality | Functional, physics-focused |
+| **Physics** | PhysX, good for general use | ODE/Bullet, optimized for robots |
+| **ROS Integration** | TCP Connector (network) | Native plugins (shared memory) |
+| **Learning Curve** | Steeper (game engine concepts) | Moderate (robotics-specific) |
+| **Use Case** | Perception, RL, visualization | Dynamics, control, SLAM |
+
+## Setup: Unity with ROS 2
+
+### Prerequisites
+
+- **Unity Editor**: 2021.3 LTS or newer
+- **ROS 2**: Humble or Iron
+- **OS**: Ubuntu 22.04 (or Windows with WSL2)
+
+### Step 1: Install Unity
+
+```bash
+# Download Unity Hub from https://unity.com/download
+
+# Install Unity Editor 2021.3 LTS via Unity Hub
+# Select Linux Build Support and Windows Build Support modules
+```
+
+### Step 2: Install Unity Robotics Hub
+
+Unity Robotics Hub provides ROS-TCP-Connector for communication.
+
+**In Unity:**
+
+1. Open Unity Editor
+2. Window → Package Manager
+3. Click "+" → Add package from git URL
+4. Enter: `https://github.com/Unity-Technologies/ROS-TCP-Connector.git?path=/com.unity.robotics.ros-tcp-connector`
+5. Wait for installation to complete
+
+### Step 3: Set up ROS-TCP-Endpoint (ROS 2 Side)
+
+Install the ROS 2 endpoint that Unity will communicate with:
+
+```bash
+# Create workspace
+mkdir -p ~/unity_ros_ws/src
+cd ~/unity_ros_ws/src
+
+# Clone ROS-TCP-Endpoint
+git clone https://github.com/Unity-Technologies/ROS-TCP-Endpoint.git
+
+# Build
+cd ~/unity_ros_ws
+colcon build
+
+# Source workspace
+source install/setup.bash
+```
+
+### Step 4: Launch ROS-TCP-Endpoint
+
+```bash
+# Start the TCP endpoint
+ros2 run ros_tcp_endpoint default_server_endpoint --ros-args -p ROS_IP:=127.0.0.1
+```
+
+**Output:**
+```
+[INFO] Starting ROS-TCP Server on 127.0.0.1:10000
+```
+
+### Step 5: Configure Unity Connection
+
+In Unity Editor:
+
+1. Robotics → ROS Settings
+2. Set:
+   - **ROS IP Address**: `127.0.0.1`
+   - **ROS Port**: `10000`
+   - **Protocol**: ROS 2
+3. Click "Connect"
+
+## Creating a Simple Robot in Unity
+
+### Step 1: Create Robot Model
+
+1. **Create new Unity project** (3D template)
+2. **Add Robot GameObject**:
+   - Right-click Hierarchy → 3D Object → Cube (rename to "Robot Base")
+   - Add child: 3D Object → Sphere (rename to "Camera Mount")
+   - Add child to sphere: Camera
+
+3. **Add RigidBody component**:
+   - Select Robot Base
+   - Add Component → Rigidbody
+   - Set Mass: 10
+
+4. **Position camera**:
+   - Set Camera position: (0, 1, 0)
+   - Rotation: (0, 0, 0)
+
+### Step 2: Create ROS Publisher (Unity → ROS 2)
+
+Create a C# script `RobotPublisher.cs`:
+
+```csharp
+using UnityEngine;
+using Unity.Robotics.ROSTCPConnector;
+using RosMessageTypes.Geometry;
+
+public class RobotPublisher : MonoBehaviour
+{
+    ROSConnection ros;
+    public string topicName = "robot_pose";
+    public float publishRate = 10f; // Hz
+
+    private float timeElapsed;
+
+    void Start()
+    {
+        // Get ROS connection
+        ros = ROSConnection.GetOrCreateInstance();
+        ros.RegisterPublisher<PoseStampedMsg>(topicName);
+    }
+
+    void Update()
+    {
+        timeElapsed += Time.deltaTime;
+
+        if (timeElapsed > 1f / publishRate)
+        {
+            // Get robot transform
+            Vector3 position = transform.position;
+            Quaternion rotation = transform.rotation;
+
+            // Create ROS message
+            PoseStampedMsg poseMsg = new PoseStampedMsg
+            {
+                header = new RosMessageTypes.Std.HeaderMsg
+                {
+                    stamp = new RosMessageTypes.BuiltinInterfaces.TimeMsg
+                    {
+                        sec = (int)Time.time,
+                        nanosec = (uint)((Time.time % 1) * 1e9)
+                    },
+                    frame_id = "unity_world"
+                },
+                pose = new PoseMsg
+                {
+                    position = new PointMsg
+                    {
+                        x = position.x,
+                        y = position.y,
+                        z = position.z
+                    },
+                    orientation = new QuaternionMsg
+                    {
+                        x = rotation.x,
+                        y = rotation.y,
+                        z = rotation.z,
+                        w = rotation.w
+                    }
+                }
+            };
+
+            // Publish message
+            ros.Publish(topicName, poseMsg);
+
+            timeElapsed = 0;
+        }
+    }
+}
+```
+
+**Attach script**:
+1. Drag `RobotPublisher.cs` onto Robot Base GameObject
+2. Set Topic Name: `robot_pose`
+3. Set Publish Rate: `10`
+
+### Step 3: Verify ROS 2 Topic
+
+```bash
+# In terminal, check topic
+ros2 topic list
+
+# Echo topic
+ros2 topic echo /robot_pose
+```
+
+## Subscribing to ROS 2 Topics in Unity
+
+Create script `RobotSubscriber.cs` to move robot based on ROS commands:
+
+```csharp
+using UnityEngine;
+using Unity.Robotics.ROSTCPConnector;
+using RosMessageTypes.Geometry;
+
+public class RobotSubscriber : MonoBehaviour
+{
+    public string topicName = "cmd_vel";
+    public float speed = 2.0f;
+
+    void Start()
+    {
+        ROSConnection.GetOrCreateInstance().Subscribe<TwistMsg>(topicName, MoveRobot);
+    }
+
+    void MoveRobot(TwistMsg twist)
+    {
+        // Apply linear velocity
+        float linearX = (float)twist.linear.x;
+        float angularZ = (float)twist.angular.z;
+
+        // Move robot
+        transform.Translate(Vector3.forward * linearX * speed * Time.deltaTime);
+        transform.Rotate(Vector3.up, angularZ * Mathf.Rad2Deg * Time.deltaTime);
+    }
+}
+```
+
+**Test with ROS 2:**
+
+```bash
+# Publish velocity commands
+ros2 topic pub /cmd_vel geometry_msgs/msg/Twist \
+  "{linear: {x: 1.0, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.5}}"
+```
+
+Robot should move forward and rotate in Unity scene!
+
+## Synthetic Data Generation with Unity Perception
+
+Unity Perception package enables automatic labeling for computer vision training.
+
+### Install Perception Package
+
+In Unity Package Manager:
+1. Add package from git URL: `com.unity.perception`
+
+### Set up Perception Camera
+
+1. **Add Perception Camera**:
+   - Select Main Camera
+   - Add Component → Perception Camera
+
+2. **Add Labelers**:
+   - Bounding Box 2D Labeler
+   - Semantic Segmentation Labeler
+   - Instance Segmentation Labeler
+
+3. **Create Label Config**:
+   - Right-click Project → Create → Perception → ID Label Config
+   - Add labels: "robot", "obstacle", "floor"
+
+4. **Assign Labels to Objects**:
+   - Select Robot Base → Add Component → Labeling
+   - Add label: "robot"
+
+### Run Simulation
+
+Click Play in Unity Editor. Perception will generate:
+- **Bounding boxes** (JSON)
+- **Segmentation masks** (PNG)
+- **Sensor data** (Camera parameters)
+
+Data saved to: `<ProjectPath>/Perception/`
+
+## Unity ML-Agents for Reinforcement Learning
+
+Train robot controllers using reinforcement learning.
+
+### Install ML-Agents
+
+```bash
+# Install Python package
+pip install mlagents
+
+# In Unity Package Manager
+# Add package from git URL: com.unity.ml-agents
+```
+
+### Create Learning Environment
+
+```csharp
+using UnityEngine;
+using Unity.MLAgents;
+using Unity.MLAgents.Sensors;
+using Unity.MLAgents.Actuators;
+
+public class RobotAgent : Agent
+{
+    public Transform target;
+    Rigidbody rb;
+
+    public override void Initialize()
+    {
+        rb = GetComponent<Rigidbody>();
+    }
+
+    public override void OnEpisodeBegin()
+    {
+        // Reset robot position
+        transform.localPosition = new Vector3(0, 0.5f, 0);
+        rb.velocity = Vector3.zero;
+
+        // Randomize target position
+        target.localPosition = new Vector3(Random.Range(-4f, 4f), 0.5f, Random.Range(-4f, 4f));
+    }
+
+    public override void CollectObservations(VectorSensor sensor)
+    {
+        // Agent position and velocity
+        sensor.AddObservation(transform.localPosition);
+        sensor.AddObservation(rb.velocity);
+
+        // Target position
+        sensor.AddObservation(target.localPosition);
+    }
+
+    public override void OnActionReceived(ActionBuffers actions)
+    {
+        // Move robot
+        float moveX = actions.ContinuousActions[0];
+        float moveZ = actions.ContinuousActions[1];
+
+        rb.AddForce(new Vector3(moveX, 0, moveZ) * 10f);
+
+        // Reward for getting closer to target
+        float distanceToTarget = Vector3.Distance(transform.localPosition, target.localPosition);
+
+        if (distanceToTarget < 1.5f)
+        {
+            SetReward(1.0f);
+            EndEpisode();
+        }
+    }
+}
+```
+
+### Train the Agent
+
+```bash
+mlagents-learn config/trainer_config.yaml --run-id=robot_navigation
+```
+
+## Practical Example: ROS 2 + Unity Teleoperation
+
+**Unity Side** (Display robot state):
+- Subscribes to `/joint_states`
+- Visualizes robot in 3D with articulated joints
+
+**ROS 2 Side** (Control):
+- Publishes `/cmd_vel` from keyboard
+- Sends commands to Unity via TCP
+
+**Result**: Real-time visualization of robot responding to ROS 2 commands in Unity's photorealistic environment.
+
+## Exercises
+
+1. **Create a robot model** in Unity and publish its position to ROS 2
+2. **Subscribe to `/cmd_vel`** and move a Unity robot with ROS 2 teleop
+3. **Set up Perception camera** and generate labeled training data for object detection
+4. **Build an ML-Agents environment** where a robot learns to navigate to a target
+5. **VR Integration**: View Unity robot simulation in a VR headset
+
+## Summary
+
+Unity-ROS integration combines Unity's visual fidelity and ecosystem with ROS 2's robotics capabilities. Through ROS-TCP-Connector, developers can exchange messages, visualize robots in photorealistic environments, generate synthetic training data with Perception, and train controllers with ML-Agents.
+
+## Further Reading
+
+- [Unity Robotics Hub](https://github.com/Unity-Technologies/Unity-Robotics-Hub)
+- [ROS-TCP-Connector Documentation](https://github.com/Unity-Technologies/ROS-TCP-Connector)
+- [Unity Perception Package](https://github.com/Unity-Technologies/com.unity.perception)
+- [Unity ML-Agents Toolkit](https://github.com/Unity-Technologies/ml-agents)
+- [Unity for Robotics Tutorial Series](https://learn.unity.com/project/robotics)

@@ -1,0 +1,54 @@
+.heroBanner {
+  padding: 4rem 0;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.buttons {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 2rem;
+}
+
+.modules {
+  padding: 4rem 0;
+}
+
+.modulesTitle {
+  text-align: center;
+  font-size: 2.5rem;
+  margin-bottom: 3rem;
+  color: var(--ifm-color-primary);
+}
+
+.moduleCard {
+  margin-bottom: 2rem;
+  display: flex;
+  flex-direction: column;
+  min-width: 300px;
+  max-width: 380px;
+  flex: 1 1 calc(33.333% - 2rem);
+}
+
+@media screen and (max-width: 996px) {
+  .heroBanner {
+    padding: 2rem;
+  }
+
+  .moduleCard {
+    min-width: 100%;
+    max-width: 100%;
+    flex: 1 1 100%;
+  }
+}
+
+@media screen and (min-width: 997px) and (max-width: 1200px) {
+  .moduleCard {
+    flex: 1 1 calc(50% - 2rem);
+    max-width: 45%;
+  }
+}

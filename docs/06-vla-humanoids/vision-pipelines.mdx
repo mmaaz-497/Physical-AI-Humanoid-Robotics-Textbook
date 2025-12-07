@@ -1,0 +1,314 @@
+---
+id: vision-pipelines
+title: Vision Pipelines
+sidebar_label: Vision Pipelines
+sidebar_position: 4
+description: Building vision processing pipelines for robot perception using deep learning and classical CV
+keywords: [computer vision, object detection, segmentation, depth estimation, visual servoing]
+---
+
+# Vision Pipelines
+
+## Introduction
+
+Vision pipelines process camera images to extract semantic information for robot decision-making. This chapter covers object detection, segmentation, depth estimation, and visual servoing for manipulation and navigation tasks.
+
+**Learning Objectives:**
+- Build object detection pipelines with YOLO and DETR
+- Implement semantic segmentation for scene understanding
+- Estimate depth from stereo or monocular cameras
+- Use visual servoing for precise manipulation
+- Optimize vision pipelines for real-time performance
+
+## Theory
+
+### Vision Pipeline Architecture
+
+```
+Camera → Preprocessing → Feature Extraction → Task-Specific Head → Output
+(RGB)    (Resize, Norm)  (Backbone CNN)       (Detection/Seg)    (Results)
+```
+
+**Common Tasks:**
+
+| Task | Input | Output | Use Case |
+|------|-------|--------|----------|
+| **Object Detection** | RGB image | Bounding boxes + labels | "Where is the cup?" |
+| **Segmentation** | RGB image | Per-pixel labels | "What region is the table?" |
+| **Depth Estimation** | RGB or Stereo | Depth map | "How far is the object?" |
+| **Pose Estimation** | RGB + Depth | 6D pose (x,y,z, roll,pitch,yaw) | "Grasp this object" |
+| **Visual Servoing** | Image features | Control commands | "Center object in view" |
+
+### Model Architectures
+
+**Object Detection:**
+- **YOLO**: Fast, real-time (30-120 FPS)
+- **RT-DETR**: Transformer-based, high accuracy
+- **EfficientDet**: Efficient, mobile-friendly
+
+**Segmentation:**
+- **DeepLabV3+**: Semantic segmentation
+- **Mask R-CNN**: Instance segmentation
+- **Segment Anything (SAM)**: Zero-shot segmentation
+
+**Depth:**
+- **MiDaS**: Monocular depth estimation
+- **Stereo matching**: Classical or learned (PSMNet)
+
+## Implementation
+
+### Object Detection with YOLO
+
+```python
+from ultralytics import YOLO
+import cv2
+
+class ObjectDetector:
+    def __init__(self, model_path="yolov8n.pt"):
+        self.model = YOLO(model_path)
+
+    def detect(self, image):
+        """Run object detection on image"""
+        results = self.model(image, conf=0.5)
+
+        detections = []
+        for result in results:
+            for box in result.boxes:
+                detections.append({
+                    'class': self.model.names[int(box.cls[0])],
+                    'confidence': float(box.conf[0]),
+                    'bbox': box.xyxy[0].tolist(),  # [x1, y1, x2, y2]
+                })
+
+        return detections
+
+# Usage
+detector = ObjectDetector("yolov8n.pt")
+image = cv2.imread("scene.jpg")
+detections = detector.detect(image)
+
+for det in detections:
+    print(f"Found {det['class']} at {det['bbox']} ({det['confidence']:.2f})")
+```
+
+### ROS 2 Vision Node
+
+```python
+import rclpy
+from rclpy.node import Node
+from sensor_msgs.msg import Image
+from vision_msgs.msg import Detection2DArray, Detection2D, ObjectHypothesisWithPose
+from cv_bridge import CvBridge
+from ultralytics import YOLO
+
+class VisionNode(Node):
+    def __init__(self):
+        super().__init__('vision_node')
+
+        # Subscriptions and publishers
+        self.image_sub = self.create_subscription(
+            Image, '/camera/image_raw', self.image_callback, 10
+        )
+        self.detection_pub = self.create_publisher(
+            Detection2DArray, '/detections', 10
+        )
+
+        # Load YOLO model
+        self.model = YOLO('yolov8n.pt')
+        self.bridge = CvBridge()
+
+        self.get_logger().info("Vision node ready")
+
+    def image_callback(self, msg):
+        """Process incoming images"""
+        # Convert ROS image to OpenCV
+        cv_image = self.bridge.imgmsg_to_cv2(msg, "bgr8")
+
+        # Run detection
+        results = self.model(cv_image, conf=0.5)
+
+        # Publish detections
+        detection_msg = Detection2DArray()
+        detection_msg.header = msg.header
+
+        for result in results:
+            for box in result.boxes:
+                det = Detection2D()
+                det.bbox.center.x = (box.xyxy[0][0] + box.xyxy[0][2]) / 2
+                det.bbox.center.y = (box.xyxy[0][1] + box.xyxy[0][3]) / 2
+                det.bbox.size_x = box.xyxy[0][2] - box.xyxy[0][0]
+                det.bbox.size_y = box.xyxy[0][3] - box.xyxy[0][1]
+
+                hyp = ObjectHypothesisWithPose()
+                hyp.hypothesis.class_id = self.model.names[int(box.cls[0])]
+                hyp.hypothesis.score = float(box.conf[0])
+                det.results.append(hyp)
+
+                detection_msg.detections.append(det)
+
+        self.detection_pub.publish(detection_msg)
+
+def main():
+    rclpy.init()
+    node = VisionNode()
+    rclpy.spin(node)
+```
+
+### Depth Estimation
+
+**Monocular Depth with MiDaS:**
+
+```python
+import torch
+from torchvision.transforms import Compose, Resize, Normalize
+
+class DepthEstimator:
+    def __init__(self):
+        self.model = torch.hub.load("intel-isl/MiDaS", "MiDaS_small")
+        self.model.eval()
+
+        self.transform = Compose([
+            Resize((256, 256)),
+            Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        ])
+
+    def estimate_depth(self, rgb_image):
+        """Estimate depth from single RGB image"""
+        input_batch = self.transform(rgb_image).unsqueeze(0)
+
+        with torch.no_grad():
+            depth = self.model(input_batch)
+            depth = torch.nn.functional.interpolate(
+                depth.unsqueeze(1),
+                size=rgb_image.shape[:2],
+                mode="bicubic"
+            ).squeeze()
+
+        return depth.cpu().numpy()
+
+# Usage
+depth_estimator = DepthEstimator()
+depth_map = depth_estimator.estimate_depth(rgb_image)
+```
+
+**Stereo Depth:**
+
+```python
+import cv2
+
+class StereoDepth:
+    def __init__(self):
+        self.stereo = cv2.StereoBM_create(numDisparities=16*10, blockSize=15)
+
+    def compute_depth(self, left_image, right_image):
+        """Compute depth from stereo pair"""
+        # Convert to grayscale
+        left_gray = cv2.cvtColor(left_image, cv2.COLOR_BGR2GRAY)
+        right_gray = cv2.cvtColor(right_image, cv2.COLOR_BGR2GRAY)
+
+        # Compute disparity
+        disparity = self.stereo.compute(left_gray, right_gray)
+
+        # Convert to depth (with camera parameters)
+        baseline = 0.12  # meters
+        focal_length = 700  # pixels
+        depth = (baseline * focal_length) / (disparity + 1e-6)
+
+        return depth
+```
+
+### Visual Servoing
+
+**Image-Based Visual Servoing (IBVS):**
+
+```python
+class VisualServo:
+    def __init__(self, target_image_position):
+        """
+        Args:
+            target_image_position: Desired object position in image (u, v)
+        """
+        self.target = target_image_position
+        self.lambda_gain = 0.5  # Control gain
+
+    def compute_velocity(self, current_image_position):
+        """
+        Compute camera velocity to center object
+
+        Returns:
+            velocity: (v_x, v_y, v_z, w_x, w_y, w_z)
+        """
+        # Error in image space
+        error = self.target - current_image_position
+
+        # Interaction matrix (simplified)
+        L = np.array([
+            [-1, 0, error[0]],
+            [0, -1, error[1]]
+        ])
+
+        # Compute velocity
+        velocity = -self.lambda_gain * np.linalg.pinv(L) @ error
+
+        return velocity
+
+# Usage with object detector
+servo = VisualServo(target_image_position=[320, 240])  # Image center
+
+# In control loop:
+detections = detector.detect(image)
+if detections:
+    obj_center = get_bbox_center(detections[0]['bbox'])
+    vel = servo.compute_velocity(obj_center)
+    robot.set_velocity(vel)
+```
+
+## Performance Optimization
+
+### Model Optimization
+
+```python
+# Export YOLO to TensorRT for 3-5x speedup
+from ultralytics import YOLO
+
+model = YOLO("yolov8n.pt")
+model.export(format="engine", half=True)  # FP16
+
+# Load optimized model
+model_trt = YOLO("yolov8n.engine")
+results = model_trt(image)  # Much faster inference
+```
+
+### Batched Inference
+
+```python
+# Process multiple images at once
+images = [img1, img2, img3, img4]
+results = model(images, batch=4)  # Process 4 images simultaneously
+```
+
+### Image Preprocessing
+
+```python
+# Resize to model input size for faster inference
+import cv2
+
+def preprocess_for_speed(image, target_size=(640, 640)):
+    """Resize image to model input size"""
+    resized = cv2.resize(image, target_size)
+    return resized
+
+# Inference at 640x640 is faster than 1920x1080
+```
+
+## Summary
+
+Vision pipelines combine object detection, segmentation, and depth estimation to provide semantic scene understanding for robots. YOLO and RT-DETR enable real-time object detection, while MiDaS and stereo matching provide depth information. Visual servoing uses image features to control robot motion. TensorRT optimization and batched inference improve performance for real-time applications.
+
+## Further Reading
+
+- [YOLOv8 Documentation](https://docs.ultralytics.com/)
+- [MiDaS: Monocular Depth Estimation](https://github.com/isl-org/MiDaS)
+- [Segment Anything Model (SAM)](https://segment-anything.com/)
+- [Visual Servoing Tutorial](http://visp-doc.inria.fr/doxygen/visp-daily/tutorial-ibvs.html)
+- [TensorRT Optimization](https://docs.nvidia.com/deeplearning/tensorrt/)

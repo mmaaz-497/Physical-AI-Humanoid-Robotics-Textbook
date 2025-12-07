@@ -1,0 +1,495 @@
+---
+id: environment-creation
+title: Environment Creation
+sidebar_label: Environment Creation
+sidebar_position: 4
+description: Creating realistic simulation environments and worlds in Gazebo for robot testing
+keywords: [gazebo worlds, environment design, sdf, obstacles, terrain, simulation environments]
+---
+
+# Environment Creation
+
+## Introduction
+
+Realistic simulation environments are essential for testing robots in scenarios that mirror real-world conditions. This chapter covers creating custom worlds, adding obstacles, terrain, and environmental conditions in Gazebo.
+
+**Learning Objectives:**
+- Create custom Gazebo world files (SDF format)
+- Add models (buildings, furniture, obstacles)
+- Design terrain and ground planes
+- Configure lighting and physics parameters
+- Build test scenarios for specific robot tasks
+
+## Theory
+
+### Why Environment Design Matters
+
+**Testing Diversity:**
+- Indoor environments (warehouses, homes, offices)
+- Outdoor environments (streets, parks, rough terrain)
+- Task-specific scenarios (assembly lines, retail stores)
+
+**Algorithm Validation:**
+- Navigation algorithms need obstacles and narrow passages
+- Manipulation requires cluttered tabletops
+- Perception algorithms need varied lighting and textures
+
+**Sim-to-Real Transfer:**
+- Realistic environments improve transferability
+- Domain randomization reduces reality gap
+- Edge case coverage
+
+### Gazebo World Structure (SDF)
+
+SDF (Simulation Description Format) defines complete simulation environments:
+
+```xml
+<?xml version="1.0"?>
+<sdf version="1.7">
+  <world name="my_world">
+    <!-- Physics engine configuration -->
+    <physics type="ode">
+      <max_step_size>0.001</max_step_size>
+      <real_time_factor>1.0</real_time_factor>
+    </physics>
+
+    <!-- Lighting -->
+    <light type="directional" name="sun">
+      <pose>0 0 10 0 0 0</pose>
+      <diffuse>1 1 1 1</diffuse>
+      <specular>0.5 0.5 0.5 1</specular>
+    </light>
+
+    <!-- Ground plane -->
+    <include>
+      <uri>model://ground_plane</uri>
+    </include>
+
+    <!-- Custom models -->
+    <!-- Add buildings, obstacles, etc. -->
+  </world>
+</sdf>
+```
+
+## Creating a Basic World
+
+### Step 1: Create World File
+
+Create `warehouse.world`:
+
+```xml
+<?xml version="1.0"?>
+<sdf version="1.7">
+  <world name="warehouse">
+    <!-- Physics -->
+    <physics type="ode">
+      <max_step_size>0.001</max_step_size>
+      <real_time_factor>1.0</real_time_factor>
+      <real_time_update_rate>1000.0</real_time_update_rate>
+    </physics>
+
+    <!-- Scene -->
+    <scene>
+      <ambient>0.4 0.4 0.4 1</ambient>
+      <background>0.7 0.7 0.7 1</background>
+      <shadows>true</shadows>
+    </scene>
+
+    <!-- Sun -->
+    <light type="directional" name="sun">
+      <cast_shadows>true</cast_shadows>
+      <pose>0 0 10 0 0 0</pose>
+      <diffuse>0.8 0.8 0.8 1</diffuse>
+      <specular>0.2 0.2 0.2 1</specular>
+      <attenuation>
+        <range>1000</range>
+        <constant>0.9</constant>
+        <linear>0.01</linear>
+        <quadratic>0.001</quadratic>
+      </attenuation>
+      <direction>-0.5 0.1 -0.9</direction>
+    </light>
+
+    <!-- Ground Plane -->
+    <include>
+      <uri>model://ground_plane</uri>
+    </include>
+
+    <!-- Warehouse Floor -->
+    <model name="warehouse_floor">
+      <static>true</static>
+      <link name="floor">
+        <visual name="visual">
+          <geometry>
+            <plane>
+              <normal>0 0 1</normal>
+              <size>50 50</size>
+            </plane>
+          </geometry>
+          <material>
+            <ambient>0.5 0.5 0.5 1</ambient>
+            <diffuse>0.5 0.5 0.5 1</diffuse>
+          </material>
+        </visual>
+        <collision name="collision">
+          <geometry>
+            <plane>
+              <normal>0 0 1</normal>
+              <size>50 50</size>
+            </plane>
+          </geometry>
+        </collision>
+      </link>
+    </model>
+  </world>
+</sdf>
+```
+
+### Step 2: Launch World in Gazebo
+
+```bash
+# Launch Gazebo with custom world
+gazebo warehouse.world
+```
+
+Or via ROS 2 launch file:
+
+```python
+# warehouse_world.launch.py
+from launch import LaunchDescription
+from launch.actions import IncludeLaunchDescription
+from launch.launch_description_sources import PythonLaunchDescriptionSource
+import os
+from ament_index_python.packages import get_package_share_directory
+
+def generate_launch_description():
+    world_file = os.path.join(
+        get_package_share_directory('my_simulation'),
+        'worlds',
+        'warehouse.world'
+    )
+
+    gazebo = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource([
+            os.path.join(get_package_share_directory('gazebo_ros'),
+                         'launch', 'gazebo.launch.py')
+        ]),
+        launch_arguments={'world': world_file}.items()
+    )
+
+    return LaunchDescription([gazebo])
+```
+
+## Adding Models to the Environment
+
+### Method 1: Using Gazebo Model Database
+
+Gazebo provides pre-built models:
+
+```xml
+<!-- Add a construction cone -->
+<include>
+  <uri>model://construction_cone</uri>
+  <pose>2 3 0 0 0 0</pose>
+</include>
+
+<!-- Add a table -->
+<include>
+  <uri>model://table</uri>
+  <pose>5 0 0 0 0 1.57</pose>  <!-- x y z roll pitch yaw -->
+</include>
+
+<!-- Add multiple boxes -->
+<include>
+  <uri>model://cardboard_box</uri>
+  <name>box_1</name>
+  <pose>-2 -2 0.5 0 0 0</pose>
+</include>
+
+<include>
+  <uri>model://cardboard_box</uri>
+  <name>box_2</name>
+  <pose>-2 2 0.5 0 0 0</pose>
+</include>
+```
+
+**Available Models:**
+- Browse at: https://github.com/osrf/gazebo_models
+- Or use Gazebo GUI: Insert tab → Select model
+
+### Method 2: Creating Custom Models
+
+Create a custom obstacle:
+
+```xml
+<model name="custom_wall">
+  <static>true</static>
+  <link name="wall_link">
+    <pose>0 0 1 0 0 0</pose>
+    <collision name="collision">
+      <geometry>
+        <box>
+          <size>5 0.2 2</size>  <!-- length width height -->
+        </box>
+      </geometry>
+    </collision>
+    <visual name="visual">
+      <geometry>
+        <box>
+          <size>5 0.2 2</size>
+        </box>
+      </geometry>
+      <material>
+        <ambient>0.8 0.2 0.2 1</ambient>
+        <diffuse>0.8 0.2 0.2 1</diffuse>
+      </material>
+    </visual>
+  </link>
+</model>
+```
+
+## Terrain Generation
+
+### Heightmap Terrain
+
+For outdoor robots, create terrain from heightmap images:
+
+```xml
+<model name="terrain">
+  <static>true</static>
+  <link name="link">
+    <collision name="collision">
+      <geometry>
+        <heightmap>
+          <uri>file://terrain.png</uri>
+          <size>100 100 10</size>  <!-- x y max_height -->
+          <pos>0 0 0</pos>
+        </heightmap>
+      </geometry>
+    </collision>
+    <visual name="visual">
+      <geometry>
+        <heightmap>
+          <uri>file://terrain.png</uri>
+          <size>100 100 10</size>
+          <texture>
+            <diffuse>file://grass.jpg</diffuse>
+            <normal>file://grass_normal.jpg</normal>
+            <size>10</size>
+          </texture>
+        </heightmap>
+      </geometry>
+    </visual>
+  </link>
+</model>
+```
+
+**Heightmap Image:**
+- Grayscale PNG/JPEG
+- White = high elevation, Black = low elevation
+- Recommended: 512x512 or 1024x1024 pixels
+
+### Uneven Floors
+
+```xml
+<model name="uneven_floor">
+  <static>true</static>
+  <link name="floor">
+    <collision name="collision">
+      <geometry>
+        <mesh>
+          <uri>file://uneven_terrain.dae</uri>
+        </mesh>
+      </geometry>
+    </collision>
+    <visual name="visual">
+      <geometry>
+        <mesh>
+          <uri>file://uneven_terrain.dae</uri>
+        </mesh>
+      </geometry>
+    </visual>
+  </link>
+</model>
+```
+
+## Environment Lighting
+
+### Multiple Light Sources
+
+```xml
+<!-- Overhead lights (typical warehouse) -->
+<light type="point" name="ceiling_light_1">
+  <pose>10 10 5 0 0 0</pose>
+  <diffuse>1 1 1 1</diffuse>
+  <specular>0.1 0.1 0.1 1</specular>
+  <attenuation>
+    <range>20</range>
+    <constant>0.5</constant>
+    <linear>0.01</linear>
+  </attenuation>
+</light>
+
+<light type="point" name="ceiling_light_2">
+  <pose>-10 10 5 0 0 0</pose>
+  <diffuse>1 1 1 1</diffuse>
+  <attenuation>
+    <range>20</range>
+  </attenuation>
+</light>
+
+<!-- Spotlights -->
+<light type="spot" name="spotlight">
+  <pose>0 0 10 0 0 0</pose>
+  <diffuse>1 1 0.8 1</diffuse>
+  <direction>0 0 -1</direction>
+  <attenuation>
+    <range>50</range>
+  </attenuation>
+  <spot>
+    <inner_angle>0.6</inner_angle>
+    <outer_angle>1.0</outer_angle>
+    <falloff>1.0</falloff>
+  </spot>
+</light>
+```
+
+### Dynamic Lighting (Day/Night)
+
+Use Gazebo plugins for time-of-day simulation:
+
+```xml
+<plugin name="sun_position" filename="libgazebo_ros_sun.so">
+  <ros>
+    <namespace>/environment</namespace>
+  </ros>
+  <update_rate>0.1</update_rate>
+</plugin>
+```
+
+## Physics Configuration
+
+### Tuning Physics Parameters
+
+```xml
+<physics type="ode">
+  <max_step_size>0.001</max_step_size>  <!-- 1ms timestep -->
+  <real_time_factor>1.0</real_time_factor>
+  <real_time_update_rate>1000.0</real_time_update_rate>
+
+  <!-- Solver configuration -->
+  <ode>
+    <solver>
+      <type>quick</type>
+      <iters>50</iters>
+      <sor>1.3</sor>
+    </solver>
+    <constraints>
+      <cfm>0.0</cfm>
+      <erp>0.2</erp>
+      <contact_max_correcting_vel>100.0</contact_max_correcting_vel>
+      <contact_surface_layer>0.001</contact_surface_layer>
+    </constraints>
+  </ode>
+</physics>
+```
+
+**Key Parameters:**
+- `max_step_size`: Smaller = more accurate, slower
+- `real_time_factor`: 1.0 = real-time, >1 = faster than real-time
+- `iters`: Solver iterations (more = stable, slower)
+
+## Example Scenarios
+
+### Navigation Maze
+
+```xml
+<!-- Create maze walls -->
+<model name="maze">
+  <static>true</static>
+  <!-- Wall 1 -->
+  <link name="wall_1">
+    <pose>5 0 1 0 0 0</pose>
+    <collision name="collision">
+      <geometry><box><size>0.2 10 2</size></box></geometry>
+    </collision>
+    <visual name="visual">
+      <geometry><box><size>0.2 10 2</size></box></geometry>
+      <material><ambient>0.3 0.3 0.3 1</ambient></material>
+    </visual>
+  </link>
+
+  <!-- Add more walls to create maze pattern -->
+  <!-- ... -->
+</model>
+```
+
+### Manipulation Test (Cluttered Table)
+
+```xml
+<!-- Table with random objects -->
+<include>
+  <uri>model://table</uri>
+  <pose>0 0 0 0 0 0</pose>
+</include>
+
+<include>
+  <uri>model://coke_can</uri>
+  <pose>0.2 0.1 1.0 0 0 0</pose>
+</include>
+
+<include>
+  <uri>model://beer</uri>
+  <pose>-0.1 0.2 1.0 0 0 0</pose>
+</include>
+
+<include>
+  <uri>model://bowl</uri>
+  <pose>0.3 -0.2 1.0 0 0 0</pose>
+</include>
+```
+
+## Domain Randomization
+
+For robust sim-to-real transfer, randomize environment properties:
+
+```python
+# Python script to generate randomized worlds
+import random
+import xml.etree.ElementTree as ET
+
+def randomize_world():
+    # Randomize object positions
+    for i in range(10):
+        x = random.uniform(-5, 5)
+        y = random.uniform(-5, 5)
+        # Generate SDF with random poses
+
+    # Randomize lighting
+    ambient = random.uniform(0.2, 0.8)
+
+    # Randomize friction
+    friction = random.uniform(0.5, 1.5)
+
+    # Save world file
+    # ...
+```
+
+## Exercises
+
+1. **Create a warehouse environment** with shelves, boxes, and a navigation path
+2. **Design an outdoor scenario** with terrain, trees, and uneven ground
+3. **Build a manipulation testbed** with a table and 5 graspable objects
+4. **Implement domain randomization** - script that generates 10 variations of a world
+5. **Test lighting effects** - create worlds with different lighting conditions and observe camera sensor output
+
+## Summary
+
+Environment creation in Gazebo enables testing robots in diverse, realistic scenarios before real-world deployment. By designing custom worlds with obstacles, terrain, lighting, and physics tuning, developers can validate navigation, manipulation, and perception algorithms comprehensively.
+
+## Further Reading
+
+- [Gazebo SDF Specification](http://sdformat.org/)
+- [Gazebo Model Database](https://github.com/osrf/gazebo_models)
+- [Building a World Tutorial](https://gazebosim.org/docs/latest/building_world)
+- [Domain Randomization for Sim-to-Real Transfer](https://arxiv.org/abs/1703.06907)

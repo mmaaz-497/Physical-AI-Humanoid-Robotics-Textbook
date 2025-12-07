@@ -1,0 +1,457 @@
+---
+id: sensor-simulation
+title: Sensor Simulation
+sidebar_label: Sensor Simulation
+sidebar_position: 3
+description: Simulating robot sensors in Gazebo including cameras, LiDAR, IMU, and depth sensors
+keywords: [sensor simulation, gazebo, cameras, lidar, imu, depth sensors, ros2]
+---
+
+# Sensor Simulation
+
+## Introduction
+
+Accurate sensor simulation is critical for developing and testing robot perception algorithms before deploying to physical hardware. Gazebo provides physics-based sensor models that publish data in ROS 2-compatible formats.
+
+**Learning Objectives:**
+- Understand different sensor types and their simulation models
+- Configure sensors in Gazebo SDF/URDF
+- Process simulated sensor data in ROS 2
+- Evaluate sensor simulation fidelity
+
+## Theory
+
+### Why Simulate Sensors?
+
+**Perception Algorithm Development:**
+- Test computer vision pipelines without hardware
+- Generate labeled training data for machine learning
+- Iterate on sensor placement and configuration
+
+**Sensor Fusion Testing:**
+- Combine cameras, LiDAR, IMU data
+- Test Kalman filters and SLAM algorithms
+- Validate localization and mapping
+
+**Edge Case Validation:**
+- Simulate rare environmental conditions (fog, rain, low light)
+- Test sensor failures and degradation
+- Validate robust perception
+
+### Sensor Types in Robotics
+
+| Sensor | Output | Use Case | Simulation Complexity |
+|--------|--------|----------|----------------------|
+| **Camera (RGB)** | Images | Object detection, tracking | Medium |
+| **Depth Camera** | Depth maps | 3D perception, obstacle avoidance | Medium-High |
+| **LiDAR** | Point clouds | Mapping, localization, collision avoidance | High |
+| **IMU** | Acceleration, angular velocity | Orientation, dead reckoning | Low |
+| **GPS** | Lat/lon coordinates | Outdoor localization | Low |
+| **Force/Torque** | Forces at joints | Manipulation, contact detection | Medium |
+| **Tactile** | Contact pressure | Grasping, texture sensing | High |
+
+## Camera Simulation
+
+### RGB Camera Plugin
+
+Cameras are the most common sensors in robotics. Gazebo simulates them using OpenGL rendering.
+
+**SDF/URDF Configuration:**
+
+```xml
+<gazebo reference="camera_link">
+  <sensor type="camera" name="front_camera">
+    <update_rate>30.0</update_rate>
+    <camera name="head">
+      <horizontal_fov>1.3962634</horizontal_fov>  <!-- 80 degrees -->
+      <image>
+        <width>1920</width>
+        <height>1080</height>
+        <format>R8G8B8</format>
+      </image>
+      <clip>
+        <near>0.1</near>
+        <far>100</far>
+      </clip>
+      <noise>
+        <type>gaussian</type>
+        <mean>0.0</mean>
+        <stddev>0.007</stddev>
+      </noise>
+    </camera>
+    <plugin name="camera_controller" filename="libgazebo_ros_camera.so">
+      <ros>
+        <namespace>/robot</namespace>
+        <remapping>image_raw:=camera/image_raw</remapping>
+        <remapping>camera_info:=camera/camera_info</remapping>
+      </ros>
+      <camera_name>front_camera</camera_name>
+      <frame_name>camera_link</frame_name>
+    </plugin>
+  </sensor>
+</gazebo>
+```
+
+**ROS 2 Topics Published:**
+- `/robot/camera/image_raw` (sensor_msgs/Image)
+- `/robot/camera/camera_info` (sensor_msgs/CameraInfo)
+
+**Viewing Camera Stream:**
+
+```bash
+# Install image viewer
+sudo apt install ros-humble-rqt-image-view
+
+# Launch image viewer
+ros2 run rqt_image_view rqt_image_view
+```
+
+## Depth Camera Simulation
+
+Depth cameras (e.g., Intel RealSense, Kinect) provide both RGB and depth information.
+
+**Depth Camera Plugin:**
+
+```xml
+<gazebo reference="depth_camera_link">
+  <sensor type="depth" name="depth_camera">
+    <update_rate>20.0</update_rate>
+    <camera>
+      <horizontal_fov>1.047</horizontal_fov>  <!-- 60 degrees -->
+      <image>
+        <width>640</width>
+        <height>480</height>
+      </image>
+      <clip>
+        <near>0.3</near>
+        <far>10.0</far>
+      </clip>
+    </camera>
+    <plugin name="depth_camera_controller" filename="libgazebo_ros_camera.so">
+      <ros>
+        <namespace>/robot</namespace>
+        <remapping>depth/image_raw:=depth/image</remapping>
+        <remapping>depth/camera_info:=depth/camera_info</remapping>
+        <remapping>depth/points:=depth/points</remapping>
+      </ros>
+      <frame_name>depth_camera_link</frame_name>
+    </plugin>
+  </sensor>
+</gazebo>
+```
+
+**ROS 2 Topics Published:**
+- `/robot/depth/image` (sensor_msgs/Image) - Depth image
+- `/robot/depth/camera_info` (sensor_msgs/CameraInfo)
+- `/robot/depth/points` (sensor_msgs/PointCloud2) - 3D point cloud
+
+**Processing Depth Data:**
+
+```python
+import rclpy
+from rclpy.node import Node
+from sensor_msgs.msg import Image
+from cv_bridge import CvBridge
+import cv2
+
+class DepthProcessor(Node):
+    def __init__(self):
+        super().__init__('depth_processor')
+        self.subscription = self.create_subscription(
+            Image,
+            '/robot/depth/image',
+            self.depth_callback,
+            10
+        )
+        self.bridge = CvBridge()
+
+    def depth_callback(self, msg):
+        # Convert ROS Image to OpenCV format
+        depth_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='passthrough')
+
+        # Example: Find closest object
+        min_distance = depth_image.min()
+        self.get_logger().info(f'Closest object at {min_distance:.2f}m')
+
+def main():
+    rclpy.init()
+    node = DepthProcessor()
+    rclpy.spin(node)
+
+if __name__ == '__main__':
+    main()
+```
+
+## LiDAR Simulation
+
+LiDAR (Light Detection and Ranging) sensors emit laser pulses and measure return time to create 3D point clouds.
+
+### 2D LiDAR (Planar Laser Scanner)
+
+```xml
+<gazebo reference="lidar_link">
+  <sensor type="ray" name="lidar">
+    <pose>0 0 0 0 0 0</pose>
+    <visualize>true</visualize>
+    <update_rate>10</update_rate>
+    <ray>
+      <scan>
+        <horizontal>
+          <samples>360</samples>
+          <resolution>1</resolution>
+          <min_angle>-3.14159</min_angle>  <!-- -180 degrees -->
+          <max_angle>3.14159</max_angle>   <!-- +180 degrees -->
+        </horizontal>
+      </scan>
+      <range>
+        <min>0.1</min>
+        <max>30.0</max>
+        <resolution>0.01</resolution>
+      </range>
+      <noise>
+        <type>gaussian</type>
+        <mean>0.0</mean>
+        <stddev>0.01</stddev>
+      </noise>
+    </ray>
+    <plugin name="gazebo_ros_lidar" filename="libgazebo_ros_ray_sensor.so">
+      <ros>
+        <namespace>/robot</namespace>
+        <remapping>~/out:=scan</remapping>
+      </ros>
+      <output_type>sensor_msgs/LaserScan</output_type>
+      <frame_name>lidar_link</frame_name>
+    </plugin>
+  </sensor>
+</gazebo>
+```
+
+**ROS 2 Topic:**
+- `/robot/scan` (sensor_msgs/LaserScan)
+
+### 3D LiDAR (Velodyne-style)
+
+For 3D LiDAR, configure multiple vertical layers:
+
+```xml
+<scan>
+  <horizontal>
+    <samples>1800</samples>
+    <resolution>1</resolution>
+    <min_angle>-3.14159</min_angle>
+    <max_angle>3.14159</max_angle>
+  </horizontal>
+  <vertical>
+    <samples>16</samples>  <!-- 16-beam LiDAR -->
+    <resolution>1</resolution>
+    <min_angle>-0.2618</min_angle>  <!-- -15 degrees -->
+    <max_angle>0.2618</max_angle>   <!-- +15 degrees -->
+  </vertical>
+</scan>
+```
+
+**Output:**
+- `sensor_msgs/PointCloud2` - 3D point cloud
+
+**Visualizing LiDAR Data:**
+
+```bash
+# Launch RViz
+ros2 run rviz2 rviz2
+
+# Add LaserScan display
+# Set topic to /robot/scan
+# Set Fixed Frame to lidar_link
+```
+
+## IMU Simulation
+
+IMU (Inertial Measurement Unit) sensors measure acceleration and angular velocity, critical for balance and orientation estimation.
+
+```xml
+<gazebo reference="imu_link">
+  <sensor type="imu" name="imu_sensor">
+    <always_on>true</always_on>
+    <update_rate>100.0</update_rate>
+    <imu>
+      <angular_velocity>
+        <x>
+          <noise type="gaussian">
+            <mean>0.0</mean>
+            <stddev>0.0001</stddev>
+          </noise>
+        </x>
+        <y>
+          <noise type="gaussian">
+            <mean>0.0</mean>
+            <stddev>0.0001</stddev>
+          </noise>
+        </y>
+        <z>
+          <noise type="gaussian">
+            <mean>0.0</mean>
+            <stddev>0.0001</stddev>
+          </noise>
+        </z>
+      </angular_velocity>
+      <linear_acceleration>
+        <x>
+          <noise type="gaussian">
+            <mean>0.0</mean>
+            <stddev>0.01</stddev>
+          </noise>
+        </x>
+        <y>
+          <noise type="gaussian">
+            <mean>0.0</mean>
+            <stddev>0.01</stddev>
+          </noise>
+        </y>
+        <z>
+          <noise type="gaussian">
+            <mean>0.0</mean>
+            <stddev>0.01</stddev>
+          </noise>
+        </z>
+      </linear_acceleration>
+    </imu>
+    <plugin name="imu_plugin" filename="libgazebo_ros_imu_sensor.so">
+      <ros>
+        <namespace>/robot</namespace>
+        <remapping>~/out:=imu/data</remapping>
+      </ros>
+      <frame_name>imu_link</frame_name>
+    </plugin>
+  </sensor>
+</gazebo>
+```
+
+**ROS 2 Topic:**
+- `/robot/imu/data` (sensor_msgs/Imu)
+
+**IMU Data Fields:**
+- `orientation` (quaternion) - Estimated orientation (if magnetometer present)
+- `angular_velocity` (rad/s) - Gyroscope readings
+- `linear_acceleration` (m/s²) - Accelerometer readings
+
+## GPS Simulation
+
+GPS sensors provide global position estimates.
+
+```xml
+<gazebo reference="gps_link">
+  <sensor type="gps" name="gps_sensor">
+    <update_rate>1.0</update_rate>
+    <gps>
+      <position_sensing>
+        <horizontal>
+          <noise type="gaussian">
+            <mean>0.0</mean>
+            <stddev>2.0</stddev>  <!-- 2m horizontal error -->
+          </noise>
+        </horizontal>
+        <vertical>
+          <noise type="gaussian">
+            <mean>0.0</mean>
+            <stddev>5.0</stddev>  <!-- 5m vertical error -->
+          </noise>
+        </vertical>
+      </position_sensing>
+    </gps>
+    <plugin name="gps_plugin" filename="libgazebo_ros_gps_sensor.so">
+      <ros>
+        <namespace>/robot</namespace>
+        <remapping>~/out:=gps/fix</remapping>
+      </ros>
+      <frame_name>gps_link</frame_name>
+    </plugin>
+  </sensor>
+</gazebo>
+```
+
+**ROS 2 Topic:**
+- `/robot/gps/fix` (sensor_msgs/NavSatFix)
+
+## Sensor Noise and Realism
+
+Real sensors have imperfections. Gazebo supports noise models:
+
+**Gaussian Noise:**
+```xml
+<noise>
+  <type>gaussian</type>
+  <mean>0.0</mean>
+  <stddev>0.01</stddev>  <!-- Standard deviation -->
+</noise>
+```
+
+**Custom Noise (Python Post-Processing):**
+
+```python
+import numpy as np
+
+def add_realistic_noise(sensor_data):
+    # Add bias drift (common in IMU)
+    bias = 0.001 * np.random.randn()
+
+    # Add white noise
+    noise = np.random.normal(0, 0.01, sensor_data.shape)
+
+    return sensor_data + bias + noise
+```
+
+## Multi-Sensor Fusion Example
+
+Combining camera and LiDAR for obstacle detection:
+
+```python
+import rclpy
+from rclpy.node import Node
+from sensor_msgs.msg import Image, LaserScan
+
+class SensorFusion(Node):
+    def __init__(self):
+        super().__init__('sensor_fusion')
+
+        self.camera_sub = self.create_subscription(
+            Image, '/robot/camera/image_raw', self.camera_callback, 10)
+
+        self.lidar_sub = self.create_subscription(
+            LaserScan, '/robot/scan', self.lidar_callback, 10)
+
+        self.latest_image = None
+        self.latest_scan = None
+
+    def camera_callback(self, msg):
+        self.latest_image = msg
+        self.fuse_sensors()
+
+    def lidar_callback(self, msg):
+        self.latest_scan = msg
+        self.fuse_sensors()
+
+    def fuse_sensors(self):
+        if self.latest_image and self.latest_scan:
+            # Perform fusion logic here
+            # Example: Overlay LiDAR points on camera image
+            self.get_logger().info('Fusing camera and LiDAR data')
+```
+
+## Exercises
+
+1. **Add a camera** to a URDF and visualize the stream in RViz
+2. **Configure a 360-degree LiDAR** and display the point cloud
+3. **Test IMU accuracy**: Tilt the robot in Gazebo and verify IMU orientation matches
+4. **Sensor placement**: Move a camera to different positions on a robot and observe how it affects field of view
+5. **Noise comparison**: Run sensor simulations with and without noise - how does it affect perception algorithms?
+
+## Summary
+
+Simulating sensors in Gazebo enables testing of perception algorithms without physical hardware. Cameras, LiDAR, IMU, and GPS sensors can be configured with realistic noise models, and their data streamed via ROS 2 topics for processing in navigation, mapping, and control algorithms.
+
+## Further Reading
+
+- [Gazebo Sensor Plugins](https://gazebosim.org/docs/latest/sensors/)
+- [ROS 2 Sensor Messages](https://docs.ros.org/en/humble/p/sensor_msgs/)
+- [LiDAR SLAM Algorithms](https://github.com/koide3/hdl_graph_slam)
+- [Camera Calibration in ROS 2](http://wiki.ros.org/camera_calibration)

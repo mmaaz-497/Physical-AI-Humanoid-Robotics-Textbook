@@ -1,0 +1,169 @@
+/**
+ * Custom CSS for Physical AI Humanoid Robotics Book
+ */
+
+:root {
+  /* Primary Colors */
+  --ifm-color-primary: #2e8555;
+  --ifm-color-primary-dark: #29784c;
+  --ifm-color-primary-darker: #277148;
+  --ifm-color-primary-darkest: #205d3b;
+  --ifm-color-primary-light: #33925d;
+  --ifm-color-primary-lighter: #359962;
+  --ifm-color-primary-lightest: #3cad6e;
+
+  /* Code Block Styling */
+  --ifm-code-font-size: 95%;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
+
+  /* Sidebar Width */
+  --doc-sidebar-width: 320px !important;
+}
+
+/* Dark mode colors */
+[data-theme='dark'] {
+  --ifm-color-primary: #25c2a0;
+  --ifm-color-primary-dark: #21af90;
+  --ifm-color-primary-darker: #1fa588;
+  --ifm-color-primary-darkest: #1a8870;
+  --ifm-color-primary-light: #29d5b0;
+  --ifm-color-primary-lighter: #32d8b4;
+  --ifm-color-primary-lightest: #4fddbf;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
+}
+
+/* Hero Section Styling */
+.hero {
+  padding: 4rem 2rem;
+  text-align: center;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.hero__title {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.hero__subtitle {
+  font-size: 1.25rem;
+  max-width: 800px;
+  margin: 0 auto 2rem;
+  opacity: 0.9;
+}
+
+.hero .button {
+  font-size: 1.2rem;
+  padding: 0.8rem 2rem;
+  margin: 1rem 0.5rem;
+}
+
+/* Module Cards */
+.module-cards {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 2rem;
+  padding: 2rem 0;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.module-card {
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 8px;
+  padding: 1.5rem;
+  transition: transform 0.2s, box-shadow 0.2s;
+  background: var(--ifm-background-surface-color);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 220px;
+  max-height: 280px;
+}
+
+.module-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.module-card h3 {
+  color: var(--ifm-color-primary);
+  margin-bottom: 0.75rem;
+  font-size: 1.25rem;
+  line-height: 1.4;
+}
+
+.module-card p {
+  color: var(--ifm-color-emphasis-700);
+  margin-bottom: 1rem;
+  flex-grow: 1;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.module-card a {
+  color: var(--ifm-color-primary);
+  text-decoration: none;
+  font-weight: 600;
+  margin-top: auto;
+  display: inline-block;
+}
+
+.module-card a:hover {
+  text-decoration: underline;
+}
+
+/* Improved Code Block Styling */
+pre code {
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+/* Table Styling */
+table {
+  width: 100%;
+  margin: 1rem 0;
+}
+
+table th {
+  background-color: var(--ifm-color-primary);
+  color: white;
+  padding: 0.75rem;
+}
+
+table td {
+  padding: 0.75rem;
+}
+
+/* Sidebar Customization */
+.theme-doc-sidebar-container {
+  width: var(--doc-sidebar-width) !important;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 996px) {
+  .hero__title {
+    font-size: 2rem;
+  }
+
+  .module-cards {
+    flex-direction: column;
+    align-items: center;
+    padding: 1.5rem 1rem;
+  }
+
+  .module-card {
+    max-width: 100%;
+    min-height: 200px;
+  }
+}
+
+@media (min-width: 997px) and (max-width: 1200px) {
+  .module-card {
+    min-width: 280px;
+    max-width: 320px;
+  }
+}

@@ -1,0 +1,66 @@
+---
+id: digital-twin-workstation
+title: Digital Twin Workstation Setup
+sidebar_label: Digital Twin Workstation
+sidebar_position: 1
+description: Setup guide for Digital Twin development workstation
+keywords: [digital twin, workstation setup, Ubuntu, ROS 2, Gazebo]
+---
+
+# Digital Twin Workstation Setup
+
+## Introduction
+
+Configure a powerful workstation for developing and testing Physical AI systems in simulation.
+
+## Hardware Requirements
+
+- **CPU**: 8+ cores (Intel i7/i9 or AMD Ryzen 7/9)
+- **RAM**: 32GB minimum, 64GB recommended
+- **GPU**: NVIDIA RTX 3060 or better (for Isaac Sim)
+- **Storage**: 500GB+ SSD
+- **OS**: Ubuntu 22.04 LTS
+
+## Software Installation
+
+### 1. Install Ubuntu 22.04
+
+Follow official Ubuntu installation guide.
+
+### 2. Install ROS 2 Humble
+
+```bash
+# Add ROS 2 repository
+sudo apt update
+sudo apt install software-properties-common
+sudo add-apt-repository universe
+
+# Install ROS 2 Humble
+sudo apt update
+sudo apt install ros-humble-desktop
+```
+
+### 3. Install Gazebo
+
+```bash
+sudo apt install ros-humble-gazebo-ros-pkgs
+```
+
+### 4. Install Development Tools
+
+```bash
+sudo apt install git python3-pip build-essential
+```
+
+## Verification
+
+Test your installation:
+
+```bash
+source /opt/ros/humble/setup.bash
+ros2 run demo_nodes_cpp talker
+```
+
+## Further Reading
+
+- [ROS 2 Installation Guide](https://docs.ros.org/en/humble/Installation.html)

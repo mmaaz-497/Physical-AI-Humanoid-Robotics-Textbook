@@ -1,0 +1,228 @@
+---
+id: robotics-glossary
+title: Robotics Glossary
+sidebar_label: Robotics Glossary
+sidebar_position: 1
+description: Comprehensive glossary of robotics, AI, and Physical AI terms
+keywords: [glossary, terminology, robotics, AI, reference]
+---
+
+# Robotics Glossary
+
+## A
+
+**Action Space**: Set of all possible actions a robot can take. Can be discrete (e.g., move forward, turn left) or continuous (e.g., joint velocities).
+
+**Actuator**: Device that produces motion (e.g., motors, hydraulic cylinders, pneumatic pistons).
+
+**AGV (Automated Guided Vehicle)**: Mobile robot that follows markers or wires on the floor, or uses vision or lasers for navigation.
+
+**AMR (Autonomous Mobile Robot)**: Robot that navigates using sensors and onboard decision-making, without fixed paths.
+
+**Anthropomorphic**: Resembling human form or characteristics (e.g., humanoid robots).
+
+## B
+
+**Baseline**: Distance between two stereo camera sensors, affecting depth estimation accuracy.
+
+**Behavior Tree**: Hierarchical structure for robot decision-making, organizing tasks into sequences, selectors, and parallel nodes.
+
+**Bipedal Locomotion**: Walking on two legs, requiring advanced balance control (ZMP, COM management).
+
+**Bounding Box**: Rectangle (2D) or cuboid (3D) enclosing a detected object.
+
+## C
+
+**Calibration**: Process of determining accurate parameters (camera intrinsics, joint offsets, sensor biases).
+
+**Center of Mass (COM)**: Point where an object's mass is concentrated, critical for balance control.
+
+**Collision Detection**: Identifying when robot links intersect with obstacles or self-collide.
+
+**Configuration Space (C-Space)**: Space of all possible joint configurations of a robot.
+
+## D
+
+**Degrees of Freedom (DOF)**: Number of independent ways a robot can move. Humanoid arm typically has 7 DOF.
+
+**Depth Image**: Image where each pixel represents distance to camera (e.g., from RealSense, stereo cameras).
+
+**Denavit-Hartenberg (DH)**: Standard convention for describing robot kinematics using 4 parameters per joint.
+
+**Differential Drive**: Two-wheel drive system where speed difference creates turning motion.
+
+**Digital Twin**: Virtual replica of physical robot/environment, synchronized in real-time.
+
+**Domain Randomization**: Varying simulation parameters (lighting, textures) to improve sim-to-real transfer.
+
+## E
+
+**Edge Computing**: Processing data on local devices (Jetson Orin) rather than cloud, reducing latency.
+
+**Embodied AI**: AI systems with physical presence that interact with the real world.
+
+**End-Effector**: Terminal device of a robot arm (gripper, tool, camera).
+
+**Exteroceptive Sensor**: Sensor that measures external environment (camera, LiDAR, ultrasonic).
+
+## F
+
+**Force Closure**: Grasp configuration that can resist any external force/torque.
+
+**Forward Kinematics (FK)**: Computing end-effector pose from joint angles.
+
+**FPS (Frames Per Second)**: Rate at which images are processed (e.g., 30 FPS for real-time vision).
+
+**Friction Cone**: Cone of valid contact forces determined by friction coefficient.
+
+## G
+
+**Gait**: Pattern of leg movement during locomotion (e.g., walking, running, trotting).
+
+**Gazebo**: Open-source robot simulator supporting ROS integration.
+
+**GPU Acceleration**: Using graphics processors (NVIDIA RTX, Jetson) for parallel computation (perception, physics).
+
+**Grasp Planning**: Determining where and how to grasp an object for stable manipulation.
+
+## H
+
+**Holonomic**: Robot that can move in any direction instantly (e.g., omnidirectional wheels). Most robots are non-holonomic.
+
+**Humanoid**: Robot with human-like body structure (head, torso, two arms, two legs).
+
+## I
+
+**IMU (Inertial Measurement Unit)**: Sensor measuring acceleration and angular velocity (gyroscope + accelerometer).
+
+**Impedance Control**: Control strategy creating virtual mass-spring-damper for compliant motion.
+
+**Inverse Kinematics (IK)**: Computing joint angles to achieve desired end-effector pose.
+
+**Isaac ROS**: NVIDIA's GPU-accelerated ROS 2 packages for perception and navigation.
+
+**Isaac Sim**: NVIDIA's photorealistic robot simulator built on Omniverse.
+
+## J
+
+**Jacobian**: Matrix relating joint velocities to end-effector velocities, used in IK and control.
+
+**Jetson**: NVIDIA's edge AI computing platform (Nano, Xavier, Orin) for robotics.
+
+## K
+
+**Kinematic Chain**: Series of rigid links connected by joints.
+
+**Kinematics**: Study of motion without considering forces.
+
+## L
+
+**LiDAR (Light Detection and Ranging)**: Sensor that measures distances using laser pulses, creating 3D point clouds.
+
+**LLM (Large Language Model)**: AI model trained on text (GPT-4, Llama, Claude) used for robot task planning.
+
+**Localization**: Determining robot's position in an environment (AMCL, particle filter, VSLAM).
+
+## M
+
+**Manipulation**: Moving and interacting with objects using robot arms/grippers.
+
+**MATLAB**: Programming environment commonly used for robotics algorithms and simulation.
+
+**MDP (Markov Decision Process)**: Mathematical framework for decision-making where outcomes depend only on current state.
+
+**MoveIt**: Motion planning framework for ROS/ROS 2, using OMPL planners.
+
+**Multimodal**: Combining multiple data types (vision + language, RGB + depth).
+
+## N
+
+**Nav2**: ROS 2 navigation stack for mobile robots (path planning, obstacle avoidance).
+
+**NLU (Natural Language Understanding)**: Converting human language to structured robot commands.
+
+## O
+
+**Observation Space**: Set of all possible sensor readings a robot can receive.
+
+**Occupancy Grid**: 2D map where each cell indicates free/occupied/unknown space.
+
+**Odometry**: Estimating position by integrating wheel encoder or visual feature measurements.
+
+**OMPL (Open Motion Planning Library)**: Library of sampling-based motion planning algorithms (RRT, PRM).
+
+**Omniverse**: NVIDIA's platform for 3D simulation and collaboration, foundation for Isaac Sim.
+
+## P
+
+**PhysX**: NVIDIA's physics engine used in Isaac Sim for realistic dynamics.
+
+**PID Controller**: Proportional-Integral-Derivative controller for tracking reference signals.
+
+**Pointcloud**: Set of 3D points representing object/environment surface (from LiDAR, depth cameras).
+
+**Policy**: Function mapping observations to actions in reinforcement learning.
+
+**Proprioceptive Sensor**: Sensor measuring robot's internal state (joint encoders, force/torque sensors).
+
+## Q
+
+**Quaternion**: 4-element representation of 3D rotation (x, y, z, w), avoiding gimbal lock.
+
+**QP (Quadratic Programming)**: Optimization method for whole-body control with multiple objectives.
+
+## R
+
+**RGBD**: Color (RGB) + Depth image format from cameras like RealSense.
+
+**Reinforcement Learning (RL)**: Training robots through trial-and-error with reward signals.
+
+**Robot Operating System (ROS)**: Middleware providing communication, tools, and libraries for robotics.
+
+**RRT (Rapidly-exploring Random Tree)**: Sampling-based motion planning algorithm.
+
+## S
+
+**SLAM (Simultaneous Localization and Mapping)**: Building map while tracking robot position.
+
+**SDF (Simulation Description Format)**: XML format for describing robot and world models in Gazebo.
+
+**Semantic Segmentation**: Labeling each pixel in an image with object class.
+
+**Sensor Fusion**: Combining data from multiple sensors for improved estimates.
+
+**Sim-to-Real**: Transferring policies learned in simulation to physical robots.
+
+**Stereo Vision**: Using two cameras to estimate depth through triangulation.
+
+## T
+
+**TCP (Tool Center Point)**: Reference point on robot end-effector for control.
+
+**TensorRT**: NVIDIA's inference optimizer for deep learning models (INT8, FP16 quantization).
+
+**TF (Transform)**: ROS coordinate frame transformation system (TF2 in ROS 2).
+
+**Trajectory**: Time-parameterized path defining position, velocity, acceleration.
+
+**URDF (Unified Robot Description Format)**: XML format for describing robot structure and properties.
+
+## V
+
+**VLA (Vision-Language-Action)**: System integrating visual perception, language understanding, and robot control.
+
+**Visual Servoing**: Using visual feedback to control robot motion (IBVS, PBVS).
+
+**VSLAM (Visual SLAM)**: SLAM using cameras instead of LiDAR (ORB-SLAM, Isaac Visual SLAM).
+
+## W
+
+**Whole-Body Control**: Coordinating all robot joints to achieve multiple objectives simultaneously.
+
+**Workspace**: Set of all positions reachable by robot end-effector.
+
+## Z
+
+**Zero Moment Point (ZMP)**: Point on ground where net moment from gravity and inertia is zero, used for bipedal balance.
+
+**Zero-Shot**: Model generalizing to new tasks/objects without specific training examples.

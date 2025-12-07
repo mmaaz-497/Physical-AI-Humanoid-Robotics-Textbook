@@ -1,0 +1,47 @@
+---
+id: sim-to-real-deployment
+title: Sim-to-Real Deployment
+sidebar_label: Sim-to-Real Deployment
+sidebar_position: 6
+description: Deploying robots from Isaac Sim simulation to real hardware with minimal reality gap
+keywords: [sim-to-real, deployment, isaac sim, reality gap, jetson, transfer learning]
+---
+
+# Sim-to-Real Deployment
+
+## Introduction
+
+Sim-to-real deployment bridges simulation and physical robots, enabling algorithms developed in Isaac Sim to work on real hardware through careful gap mitigation strategies.
+
+**Learning Objectives:**
+- Understand the reality gap challenge
+- Apply domain randomization for robust transfer
+- Deploy Isaac ROS to Jetson edge devices
+- Validate and tune real-world performance
+
+## Theory
+
+### The Reality Gap
+
+**Definition**: Discrepancy between simulated and real-world behavior
+
+**Mitigation Strategies:**
+1. **Domain Randomization**: Vary simulation parameters
+2. **Sensor Noise Modeling**: Add realistic noise in sim
+3. **System Identification**: Measure real robot parameters
+4. **Progressive Deployment**: Test incrementally
+
+## Deployment Workflow
+
+```
+Isaac Sim Development → Testing → Jetson Deployment → Validation
+```
+
+## Summary
+
+Successful sim-to-real deployment requires domain randomization, careful calibration, and systematic validation. Isaac ROS on Jetson enables seamless transition from simulation to real-world deployment.
+
+## Further Reading
+
+- [Sim-to-Real Transfer](https://arxiv.org/abs/1812.07252)
+- [Isaac ROS Deployment Guide](https://nvidia-isaac-ros.github.io/)

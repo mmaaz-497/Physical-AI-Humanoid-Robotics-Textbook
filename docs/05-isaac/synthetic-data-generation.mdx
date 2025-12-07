@@ -1,0 +1,47 @@
+---
+id: synthetic-data-generation
+title: Synthetic Data Generation
+sidebar_label: Synthetic Data Generation
+sidebar_position: 5
+description: Generating synthetic training data with Isaac Sim for perception models
+keywords: [synthetic data, isaac sim, domain randomization, training data, machine learning, perception]
+---
+
+# Synthetic Data Generation
+
+## Introduction
+
+Synthetic data generation in Isaac Sim enables automated creation of labeled datasets for training perception models without manual annotation. This accelerates computer vision development for robotics applications.
+
+**Learning Objectives:**
+- Generate synthetic images with automatic labels
+- Implement domain randomization techniques
+- Export datasets in standard formats (COCO, YOLO)
+- Train perception models on synthetic data
+
+## Theory
+
+### Benefits of Synthetic Data
+
+**Advantages:**
+- **Auto-labeling**: Bounding boxes, segmentation masks generated automatically
+- **Scalability**: Generate thousands of images per hour
+- **Diversity**: Cover edge cases impossible to capture in real world
+- **Cost-effective**: No manual annotation labor
+
+### Domain Randomization
+
+Vary simulation parameters to improve model generalization:
+- Lighting conditions
+- Textures and materials
+- Object poses and configurations
+- Camera angles and parameters
+
+## Summary
+
+Synthetic data generation with Isaac Sim provides automated, scalable dataset creation for training robust perception models through domain randomization and automatic annotation.
+
+## Further Reading
+
+- [Isaac Sim Replicator](https://docs.omniverse.nvidia.com/extensions/latest/ext_replicator.html)
+- [Domain Randomization](https://arxiv.org/abs/1703.06907)

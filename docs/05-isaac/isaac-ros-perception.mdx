@@ -1,0 +1,385 @@
+---
+id: isaac-ros-perception
+title: Isaac ROS Perception
+sidebar_label: Isaac ROS Perception
+sidebar_position: 3
+description: GPU-accelerated perception pipelines with Isaac ROS for object detection, segmentation, and depth processing
+keywords: [isaac ros, perception, cuda, tensorrt, object detection, segmentation, gpu acceleration]
+---
+
+# Isaac ROS Perception
+
+## Introduction
+
+Isaac ROS provides GPU-accelerated perception packages that deliver 10-30x performance improvements over CPU-based alternatives. These ROS 2 nodes leverage NVIDIA CUDA and TensorRT for real-time computer vision on Jetson and discrete GPUs.
+
+**Learning Objectives:**
+- Understand Isaac ROS architecture
+- Install and configure Isaac ROS packages
+- Run object detection with GPU acceleration
+- Process depth images for obstacle avoidance
+- Integrate Isaac ROS into existing ROS 2 systems
+
+## Theory
+
+### Why GPU-Accelerated Perception?
+
+**Performance Comparison:**
+
+| Task | CPU (Intel i7) | Isaac ROS (RTX 3080) | Speedup |
+|------|----------------|---------------------|---------|
+| Object Detection (YOLO) | 15 FPS | 120 FPS | 8x |
+| Semantic Segmentation | 5 FPS | 60 FPS | 12x |
+| Depth Processing | 20 FPS | 200 FPS | 10x |
+| Visual SLAM | 10 Hz | 60 Hz | 6x |
+
+**Benefits:**
+- **Real-time performance**: 30-60 FPS perception loops
+- **Lower latency**: Less than 50ms end-to-end
+- **Power efficiency**: Jetson Orin uses less power than CPU alternatives
+- **Scalability**: Handle multiple cameras simultaneously
+
+### Isaac ROS Architecture
+
+```
+┌──────────────────────────────────────────────────────┐
+│                   ROS 2 Graph                        │
+├──────────────────────────────────────────────────────┤
+│  Camera → Image Proc → DNN Inference → Post-Proc    │
+│           (CUDA)       (TensorRT)       (CUDA)       │
+└──────────────────────────────────────────────────────┘
+         │              │                │
+         ▼              ▼                ▼
+    GPU Memory     GPU Compute      GPU Memory
+    (Zero-copy)    (TensorRT)       (Results)
+```
+
+**Key Optimizations:**
+- **Zero-copy**: Data stays in GPU memory
+- **TensorRT**: Optimized inference engine
+- **CUDA kernels**: Custom image processing
+- **GXF (Graph Execution Framework)**: High-performance pipeline
+
+## Isaac ROS Packages
+
+### Core Packages
+
+**1. isaac_ros_image_pipeline**
+- Image rectification
+- Debayering (RAW to RGB)
+- Resize and format conversion
+- GPU-accelerated OpenCV operations
+
+**2. isaac_ros_dnn_inference**
+- TensorRT inference engine
+- Model optimization (FP16, INT8)
+- Batch processing
+
+**3. isaac_ros_object_detection**
+- DetectNet, YOLO, RT-DETR models
+- 2D bounding boxes
+- Real-time tracking
+
+**4. isaac_ros_image_segmentation**
+- Semantic segmentation (per-pixel classification)
+- Instance segmentation
+- Panoptic segmentation
+
+**5. isaac_ros_depth_image_proc**
+- Point cloud generation
+- Depth filtering
+- Normal estimation
+
+**6. isaac_ros_visual_slam**
+- Stereo/depth SLAM
+- Loop closure
+- Map optimization
+
+## Installation
+
+### Prerequisites
+
+**Jetson Orin:**
+```bash
+# JetPack 5.1+ (includes CUDA, TensorRT)
+# ROS 2 Humble
+
+# Verify CUDA
+nvcc --version
+
+# Verify TensorRT
+dpkg -l | grep tensorrt
+```
+
+**Desktop (Ubuntu 22.04):**
+```bash
+# Install CUDA 12.x
+# Download from: https://developer.nvidia.com/cuda-downloads
+
+# Install TensorRT 8.6+
+# Follow: https://docs.nvidia.com/deeplearning/tensorrt/install-guide/
+```
+
+### Install Isaac ROS
+
+```bash
+# Create workspace
+mkdir -p ~/isaac_ros_ws/src
+cd ~/isaac_ros_ws/src
+
+# Clone Isaac ROS Common
+git clone https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_common.git
+
+# Clone desired packages
+git clone https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_image_pipeline.git
+git clone https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_dnn_inference.git
+git clone https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_object_detection.git
+
+# Install dependencies
+cd ~/isaac_ros_ws
+rosdep install --from-paths src --ignore-src -r -y
+
+# Build
+colcon build --symlink-install
+
+# Source workspace
+source install/setup.bash
+```
+
+## Object Detection with YOLO
+
+### Download Pre-trained Model
+
+```bash
+# Download YOLOv8 model
+mkdir -p ~/models
+cd ~/models
+
+# Download ONNX model
+wget https://github.com/ultralytics/assets/releases/download/v0.0.0/yolov8n.onnx
+
+# Convert to TensorRT engine
+/usr/src/tensorrt/bin/trtexec \
+  --onnx=yolov8n.onnx \
+  --saveEngine=yolov8n.engine \
+  --fp16
+```
+
+### Launch Object Detection
+
+Create `object_detection.launch.py`:
+
+```python
+from launch import LaunchDescription
+from launch_ros.actions import Node
+
+def generate_launch_description():
+    return LaunchDescription([
+        # Image input (from camera or rosbag)
+        Node(
+            package='usb_cam',
+            executable='usb_cam_node_exe',
+            name='usb_cam',
+            parameters=[{
+                'video_device': '/dev/video0',
+                'image_width': 640,
+                'image_height': 480,
+                'framerate': 30.0
+            }]
+        ),
+
+        # Isaac ROS DNN Image Encoder
+        Node(
+            package='isaac_ros_dnn_image_encoder',
+            executable='dnn_image_encoder',
+            parameters=[{
+                'network_image_width': 640,
+                'network_image_height': 640,
+                'image_mean': [0.0, 0.0, 0.0],
+                'image_stddev': [1.0, 1.0, 1.0]
+            }],
+            remappings=[
+                ('image', '/usb_cam/image_raw'),
+                ('camera_info', '/usb_cam/camera_info')
+            ]
+        ),
+
+        # TensorRT Inference
+        Node(
+            package='isaac_ros_tensor_rt',
+            executable='tensor_rt_node',
+            parameters=[{
+                'model_file_path': '/home/user/models/yolov8n.engine',
+                'engine_file_path': '/home/user/models/yolov8n.engine',
+                'input_tensor_names': ['images'],
+                'input_binding_names': ['images'],
+                'output_tensor_names': ['output0'],
+                'output_binding_names': ['output0']
+            }]
+        ),
+
+        # Detection decoder
+        Node(
+            package='isaac_ros_yolov8',
+            executable='yolov8_decoder_node',
+            parameters=[{
+                'confidence_threshold': 0.5,
+                'nms_threshold': 0.4
+            }]
+        ),
+
+        # Visualization (optional)
+        Node(
+            package='isaac_ros_detectnet',
+            executable='isaac_ros_detectnet_visualizer.py'
+        )
+    ])
+```
+
+Launch:
+```bash
+ros2 launch object_detection.launch.py
+```
+
+**View detections:**
+```bash
+# Echo detections
+ros2 topic echo /detections
+
+# Or visualize in RViz
+rviz2
+```
+
+## Depth Processing
+
+### Point Cloud Generation
+
+```bash
+# Launch depth to point cloud conversion
+ros2 launch isaac_ros_depth_image_proc depth_to_pointcloud.launch.py \
+  depth_image_topic:=/camera/depth/image_raw \
+  camera_info_topic:=/camera/depth/camera_info
+```
+
+**Output:** `/points` (sensor_msgs/PointCloud2)
+
+### Obstacle Detection from Depth
+
+Create depth processing node:
+
+```python
+import rclpy
+from rclpy.node import Node
+from sensor_msgs.msg import Image
+from cv_bridge import CvBridge
+import numpy as np
+
+class ObstacleDetector(Node):
+    def __init__(self):
+        super().__init__('obstacle_detector')
+
+        self.subscription = self.create_subscription(
+            Image,
+            '/camera/depth/image',
+            self.depth_callback,
+            10
+        )
+        self.bridge = CvBridge()
+
+    def depth_callback(self, msg):
+        # Convert to numpy array
+        depth = self.bridge.imgmsg_to_cv2(msg, desired_encoding='passthrough')
+
+        # Find closest obstacle
+        min_depth = np.nanmin(depth)
+
+        if min_depth < 1.0:  # Less than 1 meter
+            self.get_logger().warn(f'Obstacle detected at {min_depth:.2f}m')
+
+def main():
+    rclpy.init()
+    node = ObstacleDetector()
+    rclpy.spin(node)
+
+if __name__ == '__main__':
+    main()
+```
+
+## Performance Optimization
+
+### Model Optimization
+
+```bash
+# Convert to FP16 for 2x speedup
+trtexec --onnx=model.onnx \
+        --saveEngine=model_fp16.engine \
+        --fp16
+
+# Convert to INT8 for 4x speedup (requires calibration)
+trtexec --onnx=model.onnx \
+        --saveEngine=model_int8.engine \
+        --int8 \
+        --calib=calibration_data.cache
+```
+
+### Batch Processing
+
+Process multiple images simultaneously:
+
+```python
+# TensorRT node parameters
+parameters=[{
+    'batch_size': 4,  # Process 4 images at once
+    'dla_core': 0     # Use Deep Learning Accelerator (Jetson only)
+}]
+```
+
+### Memory Management
+
+```bash
+# Monitor GPU memory
+watch -n 1 nvidia-smi
+
+# Reduce memory usage by lowering batch size or image resolution
+```
+
+## Integration Example: Warehouse Robot
+
+Combine Isaac ROS perception for autonomous navigation:
+
+```python
+# Perception stack for warehouse AMR
+def generate_launch_description():
+    return LaunchDescription([
+        # 1. Object detection (detect pallets, people)
+        Node(package='isaac_ros_yolov8', ...),
+
+        # 2. Depth processing (obstacle avoidance)
+        Node(package='isaac_ros_depth_image_proc', ...),
+
+        # 3. Visual SLAM (localization)
+        Node(package='isaac_ros_visual_slam', ...),
+
+        # 4. Navigation stack (path planning)
+        Node(package='nav2_bringup', ...),
+    ])
+```
+
+## Exercises
+
+1. **Install Isaac ROS** and run object detection on a test image
+2. **Benchmark performance**: Compare CPU vs GPU inference speed
+3. **Custom model**: Train a YOLOv8 model on custom objects and deploy with TensorRT
+4. **Multi-camera**: Process 2 camera streams simultaneously
+5. **Integration**: Combine object detection with depth for 3D obstacle mapping
+
+## Summary
+
+Isaac ROS provides GPU-accelerated perception pipelines that deliver real-time performance for robotics applications. By leveraging CUDA and TensorRT, Isaac ROS achieves 10-30x speedups over CPU-based perception, enabling responsive autonomous systems on Jetson and discrete GPUs.
+
+## Further Reading
+
+- [Isaac ROS Documentation](https://nvidia-isaac-ros.github.io/index.html)
+- [Isaac ROS GitHub](https://github.com/NVIDIA-ISAAC-ROS)
+- [TensorRT Optimization Guide](https://docs.nvidia.com/deeplearning/tensorrt/developer-guide/)
+- [CUDA Best Practices](https://docs.nvidia.com/cuda/cuda-c-best-practices-guide/)

@@ -1,0 +1,432 @@
+---
+id: vslam-navigation
+title: VSLAM Navigation
+sidebar_label: VSLAM Navigation
+sidebar_position: 4
+description: Visual SLAM navigation with Isaac ROS for localization and mapping
+keywords: [vslam, visual slam, isaac ros, localization, mapping, navigation, stereo vision]
+---
+
+# VSLAM Navigation
+
+## Introduction
+
+Visual SLAM (Simultaneous Localization and Mapping) enables robots to build maps while tracking their position using only cameras. Isaac ROS Visual SLAM provides GPU-accelerated VSLAM that runs at 60 Hz on Jetson and desktop GPUs.
+
+**Learning Objectives:**
+- Understand VSLAM principles
+- Set up Isaac ROS Visual SLAM
+- Calibrate stereo cameras
+- Run real-time localization and mapping
+- Integrate VSLAM with navigation stack
+
+## Theory
+
+### What is VSLAM?
+
+**Visual SLAM** solves two problems simultaneously:
+1. **Localization**: Where is the robot?
+2. **Mapping**: What does the environment look like?
+
+**Input**: Stereo camera images or depth camera
+**Output**:
+- Robot pose (position + orientation)
+- 3D point cloud map
+- Tracked features
+
+### Isaac VSLAM Architecture
+
+```
+┌─────────────────────────────────────────────┐
+│  Stereo Cameras → Rectification → Feature  │
+│    (Left/Right)     (CUDA)        Tracking  │
+│                                    (CUDA)   │
+└─────────────────────────────────────────────┘
+                    ↓
+        ┌──────────────────────┐
+        │   Visual Odometry    │
+        │   (Track features)   │
+        └──────────────────────┘
+                    ↓
+        ┌──────────────────────┐
+        │   Loop Closure       │
+        │   (Recognize places) │
+        └──────────────────────┘
+                    ↓
+        ┌──────────────────────┐
+        │   Pose Graph         │
+        │   Optimization       │
+        └──────────────────────┘
+```
+
+### VSLAM vs LiDAR SLAM
+
+| Feature | VSLAM | LiDAR SLAM |
+|---------|-------|------------|
+| **Sensor** | Stereo/Depth camera | LiDAR scanner |
+| **Cost** | Low (cameras ~$100) | High (LiDAR ~$1000+) |
+| **Range** | 2-10m | 10-100m |
+| **Lighting** | Needs light | Works in dark |
+| **Texture** | Needs features | Works on plain walls |
+| **Compute** | GPU-accelerated | CPU |
+| **Use Case** | Indoor, textured | Outdoor, large spaces |
+
+## Installation
+
+### Prerequisites
+
+```bash
+# Ubuntu 22.04 with ROS 2 Humble
+# NVIDIA GPU with CUDA support
+
+# Verify CUDA
+nvcc --version
+```
+
+### Install Isaac ROS Visual SLAM
+
+```bash
+# Create workspace
+mkdir -p ~/isaac_vslam_ws/src
+cd ~/isaac_vslam_ws/src
+
+# Clone repositories
+git clone https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_common.git
+git clone https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_visual_slam.git
+git clone https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_image_pipeline.git
+
+# Install dependencies
+cd ~/isaac_vslam_ws
+rosdep install --from-paths src --ignore-src -r -y
+
+# Build
+colcon build --symlink-install
+
+# Source workspace
+source install/setup.bash
+```
+
+## Camera Setup
+
+### Stereo Camera Calibration
+
+**Supported Cameras:**
+- Intel RealSense D435i, D455
+- ZED 2, ZED 2i
+- OAK-D
+- Custom stereo rigs
+
+**Calibrate Camera:**
+
+```bash
+# Install camera calibration package
+sudo apt install ros-humble-camera-calibration
+
+# Launch calibration (8x6 checkerboard, 0.025m squares)
+ros2 run camera_calibration cameracalibrator \
+  --size 8x6 \
+  --square 0.025 \
+  --no-service-check \
+  --ros-args \
+  -r image:=/camera/left/image_raw \
+  -r camera:=/camera/left
+
+# Repeat for right camera
+ros2 run camera_calibration cameracalibrator \
+  --size 8x6 \
+  --square 0.025 \
+  --no-service-check \
+  --ros-args \
+  -r image:=/camera/right/image_raw \
+  -r camera:=/camera/right
+```
+
+**Save calibration files to:**
+- `~/.ros/camera_info/left.yaml`
+- `~/.ros/camera_info/right.yaml`
+
+### RealSense Camera Setup
+
+```bash
+# Install RealSense ROS wrapper
+sudo apt install ros-humble-realsense2-camera
+
+# Launch RealSense with stereo
+ros2 launch realsense2_camera rs_launch.py \
+  enable_infra1:=true \
+  enable_infra2:=true \
+  enable_depth:=true
+```
+
+## Running Isaac VSLAM
+
+### Launch VSLAM
+
+Create `vslam.launch.py`:
+
+```python
+from launch import LaunchDescription
+from launch_ros.actions import Node
+
+def generate_launch_description():
+    return LaunchDescription([
+        # RealSense camera
+        Node(
+            package='realsense2_camera',
+            executable='realsense2_camera_node',
+            parameters=[{
+                'enable_infra1': True,
+                'enable_infra2': True,
+                'enable_depth': True,
+                'depth_module.profile': '640x480x30',
+                'infra_fps': 30.0
+            }]
+        ),
+
+        # Image rectification
+        Node(
+            package='isaac_ros_image_proc',
+            executable='image_format_converter_node',
+            parameters=[{
+                'encoding_desired': 'rgb8'
+            }],
+            remappings=[
+                ('image_raw', '/camera/infra1/image_rect_raw'),
+                ('image', '/camera/left/image_rect')
+            ]
+        ),
+
+        Node(
+            package='isaac_ros_image_proc',
+            executable='image_format_converter_node',
+            parameters=[{
+                'encoding_desired': 'rgb8'
+            }],
+            remappings=[
+                ('image_raw', '/camera/infra2/image_rect_raw'),
+                ('image', '/camera/right/image_rect')
+            ]
+        ),
+
+        # Isaac VSLAM
+        Node(
+            package='isaac_ros_visual_slam',
+            executable='isaac_ros_visual_slam',
+            parameters=[{
+                'denoise_input_images': False,
+                'rectified_images': True,
+                'enable_debug_mode': False,
+                'debug_dump_path': '/tmp/vslam',
+                'enable_slam_visualization': True,
+                'enable_landmarks_view': True,
+                'enable_observations_view': True,
+                'map_frame': 'map',
+                'odom_frame': 'odom',
+                'base_frame': 'base_link',
+                'camera_optical_frames': [
+                    'camera_infra1_optical_frame',
+                    'camera_infra2_optical_frame'
+                ]
+            }],
+            remappings=[
+                ('stereo_camera/left/image', '/camera/left/image_rect'),
+                ('stereo_camera/left/camera_info', '/camera/infra1/camera_info'),
+                ('stereo_camera/right/image', '/camera/right/image_rect'),
+                ('stereo_camera/right/camera_info', '/camera/infra2/camera_info')
+            ]
+        )
+    ])
+```
+
+Launch:
+```bash
+ros2 launch vslam.launch.py
+```
+
+### Monitor VSLAM Output
+
+**Published Topics:**
+```bash
+# Robot pose
+ros2 topic echo /visual_slam/tracking/odometry
+
+# Map points
+ros2 topic echo /visual_slam/tracking/slam_path
+
+# Tracking status
+ros2 topic echo /visual_slam/status
+```
+
+**Visualize in RViz:**
+```bash
+rviz2
+
+# Add displays:
+# - TF (to see robot movement)
+# - Odometry (/visual_slam/tracking/odometry)
+# - PointCloud2 (/visual_slam/vis/landmarks_cloud)
+# - Path (/visual_slam/tracking/slam_path)
+```
+
+## Navigation Integration
+
+### Nav2 with VSLAM
+
+Integrate Isaac VSLAM with Nav2 navigation stack:
+
+```python
+# nav2_vslam.launch.py
+from launch import LaunchDescription
+from launch_ros.actions import Node
+from launch.actions import IncludeLaunchDescription
+from launch.launch_description_sources import PythonLaunchDescriptionSource
+from ament_index_python.packages import get_package_share_directory
+import os
+
+def generate_launch_description():
+    nav2_bringup_dir = get_package_share_directory('nav2_bringup')
+
+    return LaunchDescription([
+        # VSLAM for localization
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource([vslam_launch_file])
+        ),
+
+        # Nav2 navigation
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource([
+                os.path.join(nav2_bringup_dir, 'launch', 'navigation_launch.py')
+            ]),
+            launch_arguments={
+                'use_sim_time': 'false',
+                'params_file': '/path/to/nav2_params.yaml'
+            }.items()
+        )
+    ])
+```
+
+### Set Navigation Goal
+
+```bash
+# Send goal via command line
+ros2 topic pub --once /goal_pose geometry_msgs/msg/PoseStamped \
+  "{header: {frame_id: 'map'},
+    pose: {position: {x: 2.0, y: 1.0, z: 0.0},
+           orientation: {w: 1.0}}}"
+```
+
+## Performance Tuning
+
+### Optimize for Speed
+
+```yaml
+# VSLAM parameters for high-speed operation
+parameters:
+  enable_imu_fusion: true  # Use IMU if available
+  num_cameras: 2
+  horizontal_stereo_camera: true
+
+  # Feature tracking
+  max_features_per_frame: 1000  # Reduce for speed
+  min_num_features: 100
+
+  # Mapping
+  enable_localization_n_mapping: true
+  enable_reading_slam_internals: false
+
+  # Performance
+  use_gpu: true
+  gpu_id: 0
+```
+
+### Quality vs Speed
+
+| Setting | Speed | Accuracy | Use Case |
+|---------|-------|----------|----------|
+| max_features: 2000 | Slow | High | Precise mapping |
+| max_features: 1000 | Medium | Medium | Balanced |
+| max_features: 500 | Fast | Lower | Fast navigation |
+
+## Troubleshooting
+
+### Issue 1: Poor Tracking
+
+**Symptoms**: Robot pose jumps, tracking lost
+**Causes**:
+- Insufficient lighting
+- Lack of visual features (plain walls)
+- Camera framerate too low
+- Motion too fast
+
+**Solutions:**
+```bash
+# Increase lighting
+# Add textured objects to environment
+# Slow down robot motion
+# Increase camera framerate to 60 FPS
+```
+
+### Issue 2: Drift Over Time
+
+**Symptoms**: Map slowly shifts
+**Solution**: Enable loop closure
+
+```yaml
+parameters:
+  enable_loop_closure: true
+  loop_closure_period: 10  # Seconds between checks
+```
+
+### Issue 3: High CPU Usage
+
+**Symptoms**: High CPU despite GPU acceleration
+**Solution**: Ensure CUDA is being used
+
+```bash
+# Check GPU utilization
+nvidia-smi -l 1
+
+# Verify CUDA-enabled build
+ros2 pkg prefix isaac_ros_visual_slam
+```
+
+## Advanced: IMU Fusion
+
+Combine VSLAM with IMU for better tracking:
+
+```python
+Node(
+    package='isaac_ros_visual_slam',
+    executable='isaac_ros_visual_slam',
+    parameters=[{
+        'enable_imu_fusion': True,
+        'gyro_noise_density': 0.000244,
+        'gyro_random_walk': 0.000019393,
+        'accel_noise_density': 0.001862,
+        'accel_random_walk': 0.003,
+        'calibration_frequency': 200.0  # IMU frequency
+    }],
+    remappings=[
+        ('visual_slam/imu', '/camera/imu')
+    ]
+)
+```
+
+## Exercises
+
+1. **Run Isaac VSLAM** with RealSense camera and visualize in RViz
+2. **Map a room**: Walk robot around and observe map building
+3. **Test loop closure**: Return to starting position and verify drift correction
+4. **Compare performance**: Measure FPS with CPU SLAM vs Isaac VSLAM
+5. **Navigation**: Set goal pose and let robot navigate autonomously
+
+## Summary
+
+Isaac ROS Visual SLAM provides GPU-accelerated localization and mapping using stereo or depth cameras, enabling real-time navigation at 60 Hz. Integration with Nav2 allows autonomous robot navigation using only visual sensors.
+
+## Further Reading
+
+- [Isaac ROS Visual SLAM Documentation](https://nvidia-isaac-ros.github.io/repositories_and_packages/isaac_ros_visual_slam/index.html)
+- [Visual SLAM Tutorial](https://docs.omniverse.nvidia.com/isaacsim/latest/features/sensors_simulation/isaac_sim_sensors_camera.html)
+- [Nav2 Integration Guide](https://navigation.ros.org/)
+- [Stereo Camera Calibration](http://wiki.ros.org/camera_calibration)

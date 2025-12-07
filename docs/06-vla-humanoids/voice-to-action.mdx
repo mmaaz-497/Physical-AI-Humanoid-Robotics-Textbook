@@ -1,0 +1,255 @@
+---
+id: voice-to-action
+title: Voice to Action
+sidebar_label: Voice to Action
+sidebar_position: 2
+description: Converting voice commands to robot actions using speech recognition and natural language understanding
+keywords: [voice control, speech recognition, STT, whisper, voice commands, natural language]
+---
+
+# Voice to Action
+
+## Introduction
+
+Voice-to-action systems enable robots to understand and execute spoken commands, providing an intuitive human-robot interface. This chapter covers speech-to-text (STT), natural language understanding (NLU), and mapping voice commands to robot actions.
+
+**Learning Objectives:**
+- Implement speech recognition with Whisper and other STT models
+- Parse natural language commands with LLMs
+- Integrate voice control with ROS 2
+- Handle ambiguous commands and confirmations
+- Deploy voice interfaces on edge devices
+
+## Theory
+
+### Voice-to-Action Pipeline
+
+```
+Microphone → Speech-to-Text → NLU → Action Planning → Robot Execution
+(Audio)       (Whisper)         (LLM)  (Task planner)  (Controllers)
+```
+
+**Key Components:**
+
+| Component | Technology | Purpose |
+|-----------|-----------|---------|
+| **Audio Capture** | PyAudio, ROS Audio | Record microphone input |
+| **Speech-to-Text** | Whisper, Vosk, Google STT | Convert speech to text |
+| **NLU** | GPT-4, Claude, Llama | Understand intent |
+| **Action Mapping** | Rule-based or learned | Map commands to actions |
+| **Feedback** | TTS (Text-to-Speech) | Confirm understanding |
+
+### STT Model Comparison
+
+| Model | Speed | Accuracy | Offline | Languages |
+|-------|-------|----------|---------|-----------|
+| **Whisper (Base)** | Real-time | 95% | Yes | 99 |
+| **Whisper (Large)** | 2x slower | 98% | Yes | 99 |
+| **Google STT** | Fast | 97% | No | 125+ |
+| **Vosk** | Very fast | 90% | Yes | 20 |
+
+## Implementation
+
+### Whisper Speech Recognition
+
+```python
+import whisper
+import pyaudio
+import numpy as np
+
+class VoiceInterface:
+    def __init__(self):
+        # Load Whisper model
+        self.model = whisper.load_model("base")  # or "small", "medium", "large"
+
+        # Audio capture settings
+        self.RATE = 16000
+        self.CHUNK = 1024
+
+    def listen(self, duration=5):
+        """Capture audio from microphone"""
+        audio = pyaudio.PyAudio()
+        stream = audio.open(
+            format=pyaudio.paInt16,
+            channels=1,
+            rate=self.RATE,
+            input=True,
+            frames_per_buffer=self.CHUNK
+        )
+
+        print("Listening...")
+        frames = []
+        for _ in range(0, int(self.RATE / self.CHUNK * duration)):
+            data = stream.read(self.CHUNK)
+            frames.append(np.frombuffer(data, dtype=np.int16))
+
+        stream.stop_stream()
+        stream.close()
+
+        # Combine and normalize
+        audio_data = np.concatenate(frames).astype(np.float32) / 32768.0
+        return audio_data
+
+    def transcribe(self, audio_data):
+        """Convert speech to text with Whisper"""
+        result = self.model.transcribe(audio_data, language='en')
+        return result['text']
+
+    def voice_loop(self):
+        """Continuous voice command loop"""
+        while True:
+            audio = self.listen(duration=3)
+            text = self.transcribe(audio)
+
+            if text.strip():
+                print(f"You said: {text}")
+                yield text
+
+# Usage
+voice = VoiceInterface()
+for command in voice.voice_loop():
+    process_command(command)
+```
+
+### ROS 2 Voice Command Node
+
+```python
+import rclpy
+from rclpy.node import Node
+from std_msgs.msg import String
+import whisper
+
+class VoiceCommandNode(Node):
+    def __init__(self):
+        super().__init__('voice_command_node')
+
+        # Publisher for recognized commands
+        self.command_pub = self.create_publisher(String, '/voice_command', 10)
+
+        # Load Whisper
+        self.model = whisper.load_model("base")
+
+        # Start listening
+        self.timer = self.create_timer(3.0, self.listen_and_publish)
+        self.get_logger().info("Voice command node ready")
+
+    def listen_and_publish(self):
+        """Listen for voice command and publish to ROS topic"""
+        audio = self.capture_audio(duration=3)
+        text = self.model.transcribe(audio)['text']
+
+        if text.strip():
+            msg = String()
+            msg.data = text
+            self.command_pub.publish(msg)
+            self.get_logger().info(f"Published command: {text}")
+
+def main():
+    rclpy.init()
+    node = VoiceCommandNode()
+    rclpy.spin(node)
+```
+
+### Natural Language Understanding
+
+**Parse commands with LLM:**
+
+```python
+from transformers import pipeline
+
+class CommandParser:
+    def __init__(self):
+        self.llm = pipeline("text-generation", model="meta-llama/Llama-3-8B")
+
+    def parse_command(self, voice_text: str):
+        """Extract structured action from voice command"""
+        prompt = f"""
+        Parse this robot command into JSON:
+        Command: "{voice_text}"
+
+        Output format:
+        {{
+            "action": "move" | "pick" | "place" | "navigate",
+            "object": "object name or null",
+            "location": "location name or null",
+            "parameters": {{}}
+        }}
+        """
+
+        response = self.llm(prompt, max_length=100)[0]['generated_text']
+        return self.extract_json(response)
+
+    def extract_json(self, text):
+        """Extract JSON from LLM response"""
+        import json, re
+        match = re.search(r'\{.*\}', text, re.DOTALL)
+        if match:
+            return json.loads(match.group())
+        return None
+
+# Example usage
+parser = CommandParser()
+command = parser.parse_command("Pick up the red cup and place it on the table")
+# Output: {'action': 'pick', 'object': 'red cup', 'location': 'table'}
+```
+
+## Advanced Features
+
+### Wake Word Detection
+
+```python
+import pvporcupine
+
+class WakeWordDetector:
+    def __init__(self):
+        self.porcupine = pvporcupine.create(keywords=['robot', 'hey-robot'])
+
+    def is_wake_word(self, audio_frame):
+        """Check if audio contains wake word"""
+        keyword_index = self.porcupine.process(audio_frame)
+        return keyword_index >= 0
+
+# Only listen after hearing "Hey robot"
+detector = WakeWordDetector()
+if detector.is_wake_word(audio):
+    command = voice.transcribe(audio)
+```
+
+### Command Confirmation
+
+```python
+from gtts import gTTS
+import os
+
+class VoiceConfirmation:
+    def speak(self, text: str):
+        """Text-to-speech feedback"""
+        tts = gTTS(text=text, lang='en')
+        tts.save("temp.mp3")
+        os.system("mpg321 temp.mp3")
+
+    def confirm_action(self, command):
+        """Ask user to confirm before executing"""
+        self.speak(f"Did you say: {command}?")
+
+        # Listen for confirmation
+        response = voice.listen(duration=2)
+        if "yes" in response.lower():
+            return True
+        return False
+
+# Usage
+if confirmation.confirm_action("pick up the cup"):
+    robot.execute_action(action)
+```
+
+## Summary
+
+Voice-to-action systems combine speech recognition (Whisper, Vosk) with natural language understanding (LLMs) to enable intuitive robot control. ROS 2 integration allows voice commands to trigger navigation, manipulation, and other behaviors. Wake word detection and command confirmation improve usability and safety.
+
+## Further Reading
+
+- [Whisper: OpenAI Speech Recognition](https://github.com/openai/whisper)
+- [Vosk: Offline Speech Recognition](https://alphacephei.com/vosk/)
+- [Porcupine Wake Word](https://picovoice.ai/platform/porcupine/)
+- [ROS Audio Common](http://wiki.ros.org/audio_common)

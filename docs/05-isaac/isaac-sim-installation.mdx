@@ -1,0 +1,348 @@
+---
+id: isaac-sim-installation
+title: Isaac Sim Installation
+sidebar_label: Isaac Sim Installation
+sidebar_position: 2
+description: Step-by-step guide to installing and configuring NVIDIA Isaac Sim
+keywords: [isaac sim, installation, omniverse, nvidia, setup, configuration]
+---
+
+# Isaac Sim Installation
+
+## Introduction
+
+Installing Isaac Sim requires setting up NVIDIA Omniverse Launcher, configuring system requirements, and installing Isaac Sim itself. This chapter provides a complete installation guide for Ubuntu and Windows.
+
+**Learning Objectives:**
+- Install NVIDIA Omniverse Launcher
+- Configure system for Isaac Sim
+- Install Isaac Sim and verify installation
+- Launch first simulation
+
+## Prerequisites
+
+### Hardware Requirements
+
+**Minimum:**
+- GPU: NVIDIA RTX 2080 (8GB VRAM)
+- CPU: Intel i7 or AMD Ryzen 7 (6+ cores)
+- RAM: 16GB
+- Storage: 50GB free space
+- Display: 1920x1080
+
+**Recommended:**
+- GPU: NVIDIA RTX 3080 or better (12GB+ VRAM)
+- CPU: Intel i9 or AMD Ryzen 9 (8+ cores)
+- RAM: 32GB+
+- Storage: 100GB+ SSD
+- Display: 2560x1440 or higher
+
+### Software Requirements
+
+**Ubuntu 22.04:**
+```bash
+# Check Ubuntu version
+lsb_release -a
+
+# Expected: Ubuntu 22.04 LTS
+```
+
+**NVIDIA Driver:**
+```bash
+# Check driver version
+nvidia-smi
+
+# Required: Driver 525+ with CUDA 12.x
+```
+
+**If driver needs update:**
+```bash
+# Add NVIDIA PPA
+sudo add-apt-repository ppa:graphics-drivers/ppa
+sudo apt update
+
+# Install latest driver
+sudo apt install nvidia-driver-535
+
+# Reboot
+sudo reboot
+```
+
+## Installation Steps
+
+### Step 1: Download Omniverse Launcher
+
+**Ubuntu:**
+```bash
+# Visit NVIDIA Omniverse Download page
+# https://www.nvidia.com/en-us/omniverse/download/
+
+# Download AppImage
+wget https://install.launcher.omniverse.nvidia.com/installers/omniverse-launcher-linux.AppImage
+
+# Make executable
+chmod +x omniverse-launcher-linux.AppImage
+
+# Run launcher
+./omniverse-launcher-linux.AppImage
+```
+
+**Windows:**
+1. Visit https://www.nvidia.com/en-us/omniverse/download/
+2. Download `omniverse-launcher-win.exe`
+3. Run installer and follow prompts
+
+### Step 2: Create NVIDIA Account
+
+1. Launch Omniverse Launcher
+2. Click "Sign In"
+3. Create NVIDIA account (or sign in with existing)
+4. Accept terms and conditions
+
+### Step 3: Install Isaac Sim
+
+**Via Omniverse Launcher:**
+
+1. **Navigate to Exchange**
+   - Click "Exchange" tab in launcher
+   - Search for "Isaac Sim"
+
+2. **Install Isaac Sim**
+   - Click "Install" on Isaac Sim card
+   - Select installation location (default: `~/.local/share/ov/pkg/`)
+   - Wait for download (15-20 GB)
+
+**Installation Path:**
+- Linux: `~/.local/share/ov/pkg/isaac_sim-{version}/`
+- Windows: `C:\Users\{username}\AppData\Local\ov\pkg\isaac_sim-{version}\`
+
+### Step 4: Verify Installation
+
+```bash
+# Navigate to Isaac Sim directory
+cd ~/.local/share/ov/pkg/isaac_sim-*
+
+# List contents
+ls
+
+# Should see: isaac-sim.sh, python.sh, etc.
+
+# Test launch (headless mode)
+./isaac-sim.sh --help
+```
+
+**Expected output:**
+```
+usage: isaac-sim.sh [options]
+  --help                 Show this help message
+  --no-window           Run in headless mode
+  ...
+```
+
+### Step 5: Launch Isaac Sim GUI
+
+```bash
+# Launch Isaac Sim
+./isaac-sim.sh
+
+# First launch may take 2-5 minutes (shader compilation)
+```
+
+**Omniverse Create window should open with Isaac Sim UI.**
+
+## Configuration
+
+### ROS 2 Integration Setup
+
+```bash
+# Source ROS 2
+source /opt/ros/humble/setup.bash
+
+# Set environment variable for Isaac Sim
+export ISAACSIM_PATH=~/.local/share/ov/pkg/isaac_sim-*
+
+# Add to ~/.bashrc for persistence
+echo "export ISAACSIM_PATH=~/.local/share/ov/pkg/isaac_sim-*" >> ~/.bashrc
+```
+
+### Python Environment
+
+Isaac Sim includes its own Python environment:
+
+```bash
+# Isaac Sim Python
+./python.sh
+
+# Verify Isaac Sim modules
+./python.sh -c "import omni.isaac.core; print('Isaac Core loaded')"
+```
+
+### Installing Additional Python Packages
+
+```bash
+# Use Isaac Sim's pip
+./python.sh -m pip install numpy scipy matplotlib
+```
+
+## First Simulation
+
+### Launch Sample Scene
+
+**Method 1: Via GUI**
+1. Launch Isaac Sim
+2. Isaac Examples → Simple Objects → Rigid Bodies
+3. Click "Play" button (bottom left)
+4. Observe physics simulation
+
+**Method 2: Via Python Script**
+
+Create `hello_isaac.py`:
+
+```python
+from omni.isaac.kit import SimulationApp
+simulation_app = SimulationApp({"headless": False})
+
+from omni.isaac.core import World
+from omni.isaac.core.objects import DynamicCuboid
+
+# Create world
+world = World()
+
+# Add cube
+cube = DynamicCuboid(
+    prim_path="/World/Cube",
+    position=[0, 0, 2.0],
+    size=0.5,
+    color=[0, 0, 1]
+)
+
+# Run simulation
+world.reset()
+for i in range(500):
+    world.step(render=True)
+
+simulation_app.close()
+```
+
+Run script:
+```bash
+./python.sh hello_isaac.py
+```
+
+Cube should fall and bounce!
+
+### Load Robot Example
+
+```bash
+# Launch Carter robot navigation example
+# In Isaac Sim GUI:
+# Isaac Examples → ROS2 → Navigation → Carter Warehouse
+# Click "Load"
+# Click "Play"
+```
+
+**Verify ROS 2 topics:**
+```bash
+# In separate terminal
+ros2 topic list
+
+# Should show:
+# /cmd_vel
+# /scan
+# /odom
+# /camera/rgb/image_raw
+```
+
+## Troubleshooting
+
+### Issue 1: "NVIDIA Driver Not Found"
+
+**Solution:**
+```bash
+# Reinstall driver
+sudo apt purge nvidia-*
+sudo apt install nvidia-driver-535
+sudo reboot
+```
+
+### Issue 2: Isaac Sim Crashes on Launch
+
+**Check GPU compatibility:**
+```bash
+nvidia-smi
+
+# Verify GPU is RTX series (2000+, 3000+, 4000+)
+```
+
+**Check VRAM:**
+```bash
+# Ensure at least 8GB VRAM available
+nvidia-smi --query-gpu=memory.total --format=csv
+```
+
+### Issue 3: Slow Performance
+
+**Enable GPU acceleration:**
+1. Isaac Sim → Edit → Preferences
+2. Rendering → Enable RTX Real-Time
+3. Physics → Set Update Rate to 60 Hz
+
+**Reduce scene complexity:**
+- Lower texture resolution
+- Disable ray tracing (for testing)
+- Reduce number of objects
+
+### Issue 4: ROS 2 Bridge Not Working
+
+```bash
+# Ensure ROS 2 is sourced
+source /opt/ros/humble/setup.bash
+
+# Verify ROS_DOMAIN_ID matches
+echo $ROS_DOMAIN_ID
+
+# Check Isaac Sim ROS 2 bridge status
+# In Isaac Sim Python console:
+# >>> import omni.isaac.ros2_bridge
+```
+
+## Best Practices
+
+### 1. Cache Management
+
+Isaac Sim generates shader cache:
+
+```bash
+# Clear cache if experiencing issues
+rm -rf ~/.cache/ov
+rm -rf ~/.nvidia-omniverse/cache
+```
+
+### 2. Multiple Versions
+
+Keep multiple Isaac Sim versions:
+
+```bash
+# Versions are stored separately:
+~/.local/share/ov/pkg/isaac_sim-2023.1.0/
+~/.local/share/ov/pkg/isaac_sim-2023.1.1/
+
+# Switch by changing ISAACSIM_PATH
+```
+
+### 3. Extensions
+
+Install useful extensions via Omniverse Launcher:
+- Isaac ROS Bridge
+- Isaac Cortex (behavior trees)
+- Isaac Surface Gripper
+
+## Summary
+
+Installing Isaac Sim involves downloading Omniverse Launcher, installing Isaac Sim via the Exchange tab, and verifying the installation with sample scenes. Proper NVIDIA driver setup and GPU requirements are critical for optimal performance.
+
+## Further Reading
+
+- [Isaac Sim Installation Guide](https://docs.omniverse.nvidia.com/isaacsim/latest/installation/install_workstation.html)
+- [Omniverse System Requirements](https://docs.omniverse.nvidia.com/platform/latest/common/technical-requirements.html)
+- [Isaac Sim Release Notes](https://docs.omniverse.nvidia.com/isaacsim/latest/release_notes.html)

@@ -1,0 +1,533 @@
+---
+id: humanoid-manipulation-grasping
+title: Humanoid Manipulation & Grasping
+sidebar_label: Humanoid Manipulation & Grasping
+sidebar_position: 6
+description: Manipulation planning and grasping strategies for humanoid hands and arms
+keywords: [manipulation, grasping, dexterous hands, grasp planning, force control, dual-arm]
+---
+
+# Humanoid Manipulation & Grasping
+
+## Introduction
+
+Humanoid manipulation enables robots to interact with objects using anthropomorphic hands and arms. This chapter covers arm kinematics, grasp planning, force control, and dual-arm coordination for complex manipulation tasks.
+
+**Learning Objectives:**
+- Plan arm motions with MoveIt and OMPL
+- Generate stable grasps for various objects
+- Implement force control for delicate manipulation
+- Coordinate dual-arm tasks
+- Integrate manipulation with VLA systems
+
+## Theory
+
+### Humanoid Arm Kinematics
+
+**Typical Arm DOF:**
+
+```
+Shoulder: 3 DOF (roll, pitch, yaw)
+Elbow: 1 DOF (pitch)
+Wrist: 3 DOF (roll, pitch, yaw)
+Hand: 5-20 DOF (fingers)
+
+Total: 12-27 DOF per arm
+```
+
+**Workspace:**
+- **Reachable**: All positions the end-effector can reach
+- **Dexterous**: Positions reachable from multiple orientations
+
+### Grasp Types
+
+| Grasp Type | Description | Objects | Stability |
+|------------|-------------|---------|-----------|
+| **Power Grasp** | Palm + all fingers | Large, heavy objects | High |
+| **Precision Grasp** | Fingertips only | Small, delicate objects | Medium |
+| **Pinch Grasp** | Thumb + index | Thin objects | Low |
+| **Hook Grasp** | Curved fingers | Handles, bags | Medium |
+
+**Grasp Stability Metrics:**
+
+1. **Force Closure**: Grasp can resist any external wrench
+2. **Contact Points**: 3-4 contacts minimum for stable grasp
+3. **Friction Cone**: Contact forces stay within friction limits
+
+## Grasp Planning
+
+### Analytical Grasp Generation
+
+```python
+import numpy as np
+
+class GraspPlanner:
+    def __init__(self, gripper_width=0.08):
+        """
+        Args:
+            gripper_width: Maximum gripper opening (m)
+        """
+        self.gripper_width = gripper_width
+
+    def plan_parallel_jaw_grasp(self, object_pose, object_size):
+        """
+        Generate parallel-jaw grasp for box-like objects
+
+        Args:
+            object_pose: (x, y, z, roll, pitch, yaw) object 6D pose
+            object_size: (width, height, depth) object dimensions
+
+        Returns:
+            grasp_pose: (x, y, z, roll, pitch, yaw) gripper pose
+        """
+        x, y, z, roll, pitch, yaw = object_pose
+        width, height, depth = object_size
+
+        # Check if object fits in gripper
+        if width > self.gripper_width:
+            raise ValueError(f"Object too large: {width}m > {self.gripper_width}m")
+
+        # Approach from top
+        grasp_x = x
+        grasp_y = y
+        grasp_z = z + height/2 + 0.05  # 5cm above object
+
+        # Gripper orientation (grasp along width)
+        grasp_roll = 0
+        grasp_pitch = np.pi/2  # Fingers pointing down
+        grasp_yaw = yaw
+
+        grasp_pose = (grasp_x, grasp_y, grasp_z, grasp_roll, grasp_pitch, grasp_yaw)
+        return grasp_pose
+
+    def generate_grasp_candidates(self, object_mesh, num_candidates=10):
+        """
+        Generate multiple grasp candidates for complex objects
+
+        Args:
+            object_mesh: 3D mesh of object
+            num_candidates: Number of grasps to generate
+
+        Returns:
+            grasp_list: List of grasp poses with quality scores
+        """
+        grasps = []
+
+        # Sample points on object surface
+        surface_points = self.sample_surface_points(object_mesh, num_candidates)
+
+        for point, normal in surface_points:
+            # Align gripper with surface normal
+            approach_vector = normal
+            grasp_pose = self.compute_grasp_from_approach(point, approach_vector)
+
+            # Compute grasp quality
+            quality = self.evaluate_grasp_quality(grasp_pose, object_mesh)
+
+            grasps.append({
+                'pose': grasp_pose,
+                'quality': quality
+            })
+
+        # Sort by quality
+        grasps.sort(key=lambda g: g['quality'], reverse=True)
+        return grasps
+
+    def evaluate_grasp_quality(self, grasp_pose, object_mesh):
+        """
+        Evaluate grasp stability
+
+        Metrics:
+        - Force closure
+        - Antipodal grasp (parallel contacts)
+        - Contact area
+
+        Returns:
+            quality: Score [0, 1] (higher is better)
+        """
+        # Simplified quality metric
+        # Real implementation would use physics simulation
+        quality = 0.8  # Placeholder
+        return quality
+
+# Usage
+planner = GraspPlanner(gripper_width=0.08)
+
+object_pose = (0.5, 0.0, 0.8, 0, 0, 0)  # On table
+object_size = (0.06, 0.10, 0.04)  # Soda can dimensions
+
+grasp = planner.plan_parallel_jaw_grasp(object_pose, object_size)
+print(f"Grasp pose: {grasp}")
+```
+
+### Learning-Based Grasp Detection
+
+**GraspNet (6-DOF Grasp Prediction):**
+
+```python
+import torch
+from graspnetAPI import GraspNet
+
+class LearnedGraspPlanner:
+    def __init__(self, checkpoint_path):
+        """Load pre-trained grasp detection model"""
+        self.model = GraspNet()
+        self.model.load_state_dict(torch.load(checkpoint_path))
+        self.model.eval()
+
+    def predict_grasps(self, rgb_image, depth_image, camera_intrinsics):
+        """
+        Predict 6-DOF grasps from RGBD image
+
+        Args:
+            rgb_image: (H, W, 3) color image
+            depth_image: (H, W) depth map
+            camera_intrinsics: 3x3 camera matrix
+
+        Returns:
+            grasps: List of 6-DOF grasp poses with scores
+        """
+        # Preprocess images
+        rgb_tensor = self.preprocess_rgb(rgb_image)
+        depth_tensor = self.preprocess_depth(depth_image)
+
+        # Run inference
+        with torch.no_grad():
+            predictions = self.model(rgb_tensor, depth_tensor)
+
+        # Decode predictions
+        grasps = self.decode_grasps(predictions, camera_intrinsics)
+
+        # Filter by score threshold
+        grasps = [g for g in grasps if g['score'] > 0.5]
+
+        return grasps
+
+    def decode_grasps(self, predictions, camera_intrinsics):
+        """Convert network output to 6-DOF grasps"""
+        grasps = []
+
+        # Example: Extract top 10 grasps
+        grasp_points = predictions['points'][:10]
+        grasp_orientations = predictions['orientations'][:10]
+        grasp_scores = predictions['scores'][:10]
+
+        for point, orientation, score in zip(grasp_points, grasp_orientations, grasp_scores):
+            # Convert to 6-DOF pose
+            pose = self.point_to_pose(point, orientation, camera_intrinsics)
+            grasps.append({'pose': pose, 'score': float(score)})
+
+        return grasps
+
+# Usage
+learned_planner = LearnedGraspPlanner(checkpoint_path="graspnet.pth")
+grasps = learned_planner.predict_grasps(rgb_image, depth_image, camera_K)
+
+best_grasp = grasps[0]  # Highest scoring grasp
+print(f"Best grasp: {best_grasp['pose']}, score: {best_grasp['score']}")
+```
+
+## Motion Planning
+
+### MoveIt Integration (ROS 2)
+
+```python
+import rclpy
+from rclpy.node import Node
+from moveit_msgs.action import MoveGroup
+from geometry_msgs.msg import PoseStamped
+from rclpy.action import ActionClient
+
+class ManipulationNode(Node):
+    def __init__(self):
+        super().__init__('manipulation_node')
+
+        # MoveIt action client
+        self.moveit_client = ActionClient(self, MoveGroup, '/move_action')
+
+        self.get_logger().info("Manipulation node ready")
+
+    def plan_and_execute(self, target_pose):
+        """
+        Plan and execute arm motion to target pose
+
+        Args:
+            target_pose: (x, y, z, qx, qy, qz, qw) end-effector pose
+        """
+        goal_msg = MoveGroup.Goal()
+
+        # Set target pose
+        pose = PoseStamped()
+        pose.header.frame_id = 'base_link'
+        pose.pose.position.x = target_pose[0]
+        pose.pose.position.y = target_pose[1]
+        pose.pose.position.z = target_pose[2]
+        pose.pose.orientation.x = target_pose[3]
+        pose.pose.orientation.y = target_pose[4]
+        pose.pose.orientation.z = target_pose[5]
+        pose.pose.orientation.w = target_pose[6]
+
+        goal_msg.request.group_name = 'right_arm'
+        goal_msg.request.pose_stamped_target = pose
+        goal_msg.request.max_velocity_scaling_factor = 0.5
+        goal_msg.request.max_acceleration_scaling_factor = 0.3
+
+        # Send goal
+        self.get_logger().info("Planning motion...")
+        future = self.moveit_client.send_goal_async(goal_msg)
+        future.add_done_callback(self.goal_response_callback)
+
+    def goal_response_callback(self, future):
+        """Handle planning result"""
+        goal_handle = future.result()
+        if goal_handle.accepted:
+            self.get_logger().info("Motion accepted, executing...")
+            result_future = goal_handle.get_result_async()
+            result_future.add_done_callback(self.get_result_callback)
+        else:
+            self.get_logger().error("Motion planning failed")
+
+    def get_result_callback(self, future):
+        """Handle execution result"""
+        result = future.result().result
+        if result.error_code.val == 1:  # SUCCESS
+            self.get_logger().info("Motion completed successfully")
+        else:
+            self.get_logger().error(f"Execution failed: {result.error_code}")
+
+def main():
+    rclpy.init()
+    node = ManipulationNode()
+
+    # Example: Reach to object
+    target = [0.5, 0.2, 0.8, 0, 0.707, 0, 0.707]  # (x,y,z,qx,qy,qz,qw)
+    node.plan_and_execute(target)
+
+    rclpy.spin(node)
+```
+
+## Force Control
+
+### Hybrid Position/Force Control
+
+```python
+class ForceController:
+    def __init__(self, kp_force=0.01, target_force=5.0):
+        """
+        Hybrid controller: position control in free directions,
+                         force control in contact directions
+
+        Args:
+            kp_force: Force control gain
+            target_force: Desired contact force (N)
+        """
+        self.kp_force = kp_force
+        self.target_force = target_force
+
+    def compute_velocity(self, current_pose, current_force, contact_direction):
+        """
+        Compute end-effector velocity
+
+        Args:
+            current_pose: (x, y, z) end-effector position
+            current_force: (fx, fy, fz) measured contact force
+            contact_direction: (nx, ny, nz) surface normal
+
+        Returns:
+            velocity: (vx, vy, vz) desired velocity
+        """
+        contact_direction = np.array(contact_direction) / np.linalg.norm(contact_direction)
+
+        # Force error
+        measured_force_normal = np.dot(current_force, contact_direction)
+        force_error = self.target_force - measured_force_normal
+
+        # Velocity in contact direction (force control)
+        velocity_normal = self.kp_force * force_error * contact_direction
+
+        # Velocity in tangent directions (position control or zero)
+        velocity_tangent = np.zeros(3)
+
+        velocity = velocity_normal + velocity_tangent
+        return velocity
+
+# Example: Press gripper against table with 5N force
+force_ctrl = ForceController(kp_force=0.01, target_force=5.0)
+
+current_pose = [0.5, 0.0, 0.85]
+current_force = [0, 0, -3.0]  # 3N upward (pushing on table)
+contact_normal = [0, 0, 1]  # Table surface points up
+
+velocity = force_ctrl.compute_velocity(current_pose, current_force, contact_normal)
+print(f"Desired velocity: {velocity}")
+# Will move downward to increase contact force to 5N
+```
+
+### Impedance Control
+
+```python
+class ImpedanceController:
+    def __init__(self, mass=1.0, damping=20.0, stiffness=100.0):
+        """
+        Virtual mass-spring-damper system
+
+        Args:
+            mass: Virtual mass (kg)
+            damping: Damping coefficient (Ns/m)
+            stiffness: Spring stiffness (N/m)
+        """
+        self.M = mass
+        self.B = damping
+        self.K = stiffness
+
+    def compute_force(self, desired_pose, current_pose, current_velocity):
+        """
+        Compute desired force for compliant behavior
+
+        Args:
+            desired_pose: (x, y, z) target position
+            current_pose: (x, y, z) actual position
+            current_velocity: (vx, vy, vz) actual velocity
+
+        Returns:
+            force: (fx, fy, fz) desired contact force
+        """
+        desired_pose = np.array(desired_pose)
+        current_pose = np.array(current_pose)
+        current_velocity = np.array(current_velocity)
+
+        # Position error
+        position_error = desired_pose - current_pose
+
+        # Impedance control law
+        force = self.K * position_error - self.B * current_velocity
+
+        return force
+
+# Example: Compliant reaching
+impedance_ctrl = ImpedanceController(mass=1.0, damping=20.0, stiffness=100.0)
+
+desired = [0.5, 0.0, 0.8]
+current = [0.48, 0.0, 0.79]
+velocity = [0.1, 0, 0.05]
+
+force = impedance_ctrl.compute_force(desired, current, velocity)
+print(f"Desired force: {force}")
+```
+
+## Dual-Arm Coordination
+
+**Bimanual Grasping:**
+
+```python
+class DualArmController:
+    def __init__(self):
+        self.left_arm = ManipulationNode()
+        self.right_arm = ManipulationNode()
+
+    def bimanual_grasp(self, object_pose, object_width):
+        """
+        Grasp large object with both hands
+
+        Args:
+            object_pose: (x, y, z, roll, pitch, yaw) object center
+            object_width: Distance between grasp points (m)
+        """
+        x, y, z, roll, pitch, yaw = object_pose
+
+        # Left hand: grasp from left side
+        left_target = [x - object_width/2, y, z, 0, 0.707, 0, 0.707]
+
+        # Right hand: grasp from right side
+        right_target = [x + object_width/2, y, z, 0, 0.707, 0, 0.707]
+
+        # Execute simultaneously
+        self.left_arm.plan_and_execute(left_target)
+        self.right_arm.plan_and_execute(right_target)
+
+    def coordinated_handover(self):
+        """Transfer object from right hand to left hand"""
+        # Phase 1: Right hand moves to handover position
+        right_handover = [0.3, 0.0, 0.9, 0, 0, 0, 1]
+        self.right_arm.plan_and_execute(right_handover)
+
+        # Phase 2: Left hand approaches
+        left_approach = [0.25, 0.0, 0.9, 0, 0, 0, 1]
+        self.left_arm.plan_and_execute(left_approach)
+
+        # Phase 3: Left hand grasps
+        self.left_arm.close_gripper()
+
+        # Phase 4: Right hand releases
+        self.right_arm.open_gripper()
+
+        # Phase 5: Left hand moves away
+        left_retreat = [0.2, -0.2, 0.9, 0, 0, 0, 1]
+        self.left_arm.plan_and_execute(left_retreat)
+
+# Usage
+dual_arm = DualArmController()
+dual_arm.bimanual_grasp(object_pose=(0.5, 0, 0.8, 0, 0, 0), object_width=0.4)
+```
+
+## VLA Integration
+
+**Combining Vision-Language-Action for Manipulation:**
+
+```python
+class VLAManipulation:
+    def __init__(self):
+        self.vla_model = OpenVLA.from_pretrained("openvla-7b")
+        self.grasp_planner = LearnedGraspPlanner("graspnet.pth")
+        self.motion_planner = ManipulationNode()
+
+    def execute_command(self, voice_command, rgb_image, depth_image):
+        """
+        Execute manipulation from natural language command
+
+        Example: "Pick up the red cup"
+        """
+        # 1. Parse command with LLM
+        task_plan = self.vla_model.parse_instruction(voice_command)
+        # Output: {'action': 'pick', 'object': 'red cup'}
+
+        # 2. Detect object with vision
+        objects = self.detect_objects(rgb_image)
+        target_object = [o for o in objects if 'cup' in o['class'] and 'red' in o['color']][0]
+
+        # 3. Plan grasp
+        grasps = self.grasp_planner.predict_grasps(
+            rgb_image, depth_image, camera_K
+        )
+        best_grasp = grasps[0]
+
+        # 4. Execute motion
+        self.motion_planner.plan_and_execute(best_grasp['pose'])
+
+        # 5. Close gripper
+        self.close_gripper()
+
+        # 6. Lift object
+        lift_pose = best_grasp['pose'].copy()
+        lift_pose[2] += 0.1  # Lift 10cm
+        self.motion_planner.plan_and_execute(lift_pose)
+
+# Usage
+vla_manip = VLAManipulation()
+vla_manip.execute_command(
+    voice_command="Pick up the red cup",
+    rgb_image=camera_rgb,
+    depth_image=camera_depth
+)
+```
+
+## Summary
+
+Humanoid manipulation combines grasp planning, motion planning, and force control to interact with objects. Analytical and learning-based methods generate stable grasps. MoveIt provides motion planning for arm trajectories. Force and impedance control enable compliant, safe interactions. Dual-arm coordination allows bimanual tasks. Integration with VLA systems enables natural language manipulation commands.
+
+## Further Reading
+
+- [Grasp Planning Tutorial](https://manipulation.csail.mit.edu/pick.html)
+- [MoveIt 2 Documentation](https://moveit.picknik.ai/)
+- [GraspNet: 6-DOF Grasp Detection](https://graspnet.net/)
+- [Impedance Control Primer](https://www.springer.com/gp/book/9783319516486)

@@ -1,0 +1,206 @@
+---
+id: services-actions-parameters
+title: Services, Actions, and Parameters
+sidebar_label: Services, Actions, Parameters
+sidebar_position: 3
+description: Advanced ROS 2 communication patterns
+keywords: [ROS 2, services, actions, parameters]
+---
+
+# Services, Actions, and Parameters
+
+## Introduction
+
+Beyond topics, ROS 2 provides services for request-response communication, actions for long-running tasks, and parameters for runtime configuration.
+
+**Learning Objectives:**
+- Implement ROS 2 services for synchronous calls
+- Use actions for cancelable long-running tasks
+- Configure nodes with dynamic parameters
+
+## Services: Request-Response Pattern
+
+**Use Case:** When you need a synchronous response (e.g., "calculate path", "get sensor calibration").
+
+```
+Client → Request → Service Server → Response → Client
+```
+
+### Creating a Service Server (Python)
+
+```python
+from example_interfaces.srv import AddTwoInts
+import rclpy
+from rclpy.node import Node
+
+class MinimalService(Node):
+    def __init__(self):
+        super().__init__('minimal_service')
+        self.srv = self.create_service(AddTwoInts, 'add_two_ints', self.add_callback)
+
+    def add_callback(self, request, response):
+        response.sum = request.a + request.b
+        self.get_logger().info(f'{request.a} + {request.b} = {response.sum}')
+        return response
+
+def main():
+    rclpy.init()
+    node = MinimalService()
+    rclpy.spin(node)
+    rclpy.shutdown()
+```
+
+### Calling a Service (Python)
+
+```python
+from example_interfaces.srv import AddTwoInts
+import rclpy
+from rclpy.node import Node
+
+class MinimalClient(Node):
+    def __init__(self):
+        super().__init__('minimal_client')
+        self.cli = self.create_client(AddTwoInts, 'add_two_ints')
+        while not self.cli.wait_for_service(timeout_sec=1.0):
+            self.get_logger().info('service not available, waiting...')
+
+    def send_request(self, a, b):
+        req = AddTwoInts.Request()
+        req.a = a
+        req.b = b
+        self.future = self.cli.call_async(req)
+        return self.future
+```
+
+### CLI Usage
+
+```bash
+# Call service from command line
+ros2 service call /add_two_ints example_interfaces/srv/AddTwoInts "{a: 5, b: 3}"
+
+# List services
+ros2 service list
+
+# Get service type
+ros2 service type /add_two_ints
+```
+
+## Actions: Long-Running Tasks with Feedback
+
+**Use Case:** Tasks that take time and can be canceled (e.g., navigation, grasping).
+
+```
+Client → Goal → Action Server → Feedback (periodic) → Result
+                    ↓
+                 Cancel (optional)
+```
+
+### Action Structure
+
+- **Goal**: What to do
+- **Feedback**: Progress updates
+- **Result**: Final outcome
+
+### Using Actions (Python)
+
+```python
+import rclpy
+from rclpy.action import ActionClient
+from rclpy.node import Node
+from action_msgs.msg import GoalStatus
+from example_interfaces.action import Fibonacci
+
+class FibonacciClient(Node):
+    def __init__(self):
+        super().__init__('fibonacci_client')
+        self._action_client = ActionClient(self, Fibonacci, 'fibonacci')
+
+    def send_goal(self, order):
+        goal_msg = Fibonacci.Goal()
+        goal_msg.order = order
+
+        self._action_client.wait_for_server()
+        self._send_goal_future = self._action_client.send_goal_async(
+            goal_msg, feedback_callback=self.feedback_callback)
+
+    def feedback_callback(self, feedback_msg):
+        self.get_logger().info(f'Received feedback: {feedback_msg.feedback.partial_sequence}')
+```
+
+### CLI Usage
+
+```bash
+# Send action goal
+ros2 action send_goal /fibonacci example_interfaces/action/Fibonacci "{order: 5}"
+
+# List actions
+ros2 action list
+```
+
+## Parameters: Dynamic Configuration
+
+**Use Case:** Runtime configuration without recompiling (e.g., PID gains, sensor IDs).
+
+### Declaring Parameters (Python)
+
+```python
+class ParameterNode(Node):
+    def __init__(self):
+        super().__init__('parameter_node')
+
+        # Declare parameters with defaults
+        self.declare_parameter('my_param', 'default_value')
+        self.declare_parameter('speed', 1.0)
+
+        # Get parameter values
+        param_value = self.get_parameter('my_param').value
+        speed = self.get_parameter('speed').value
+
+        self.get_logger().info(f'Param: {param_value}, Speed: {speed}')
+```
+
+### CLI Usage
+
+```bash
+# List parameters
+ros2 param list
+
+# Get parameter value
+ros2 param get /parameter_node my_param
+
+# Set parameter value
+ros2 param set /parameter_node speed 2.5
+
+# Dump all parameters to file
+ros2 param dump /parameter_node > params.yaml
+
+# Load parameters from file
+ros2 param load /parameter_node params.yaml
+```
+
+## Comparison Table
+
+| Feature | Topics | Services | Actions | Parameters |
+|---------|--------|----------|---------|------------|
+| Pattern | Pub/Sub | Request/Response | Goal/Feedback/Result | Get/Set |
+| Synchronous | No | Yes | No | Yes |
+| Feedback | No | No | Yes | No |
+| Cancelable | No | No | Yes | No |
+| Use Case | Streaming | Quick queries | Long tasks | Configuration |
+
+## Exercises
+
+1. Create a service that calculates distance between two points
+2. Implement an action server for a countdown timer with feedback
+3. Add parameters to control node behavior (update rate, thresholds)
+4. Use `ros2 param` to modify node settings at runtime
+
+## Summary
+
+Services enable synchronous request-response, actions support long-running cancelable tasks with feedback, and parameters allow dynamic runtime configuration.
+
+## Further Reading
+
+- [ROS 2 Services Tutorial](https://docs.ros.org/en/humble/Tutorials/Services/Understanding-ROS2-Services.html)
+- [ROS 2 Actions Tutorial](https://docs.ros.org/en/humble/Tutorials/Actions/Understanding-ROS2-Actions.html)
+- [ROS 2 Parameters](https://docs.ros.org/en/humble/Tutorials/Parameters/Understanding-ROS2-Parameters.html)

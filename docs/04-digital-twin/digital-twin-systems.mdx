@@ -1,0 +1,215 @@
+---
+id: digital-twin-systems
+title: Digital Twin Systems
+sidebar_label: Digital Twin Systems
+sidebar_position: 1
+description: Introduction to digital twin systems for robotics simulation and testing
+keywords: [digital twin, simulation, gazebo, virtual environments, robot testing]
+---
+
+# Digital Twin Systems
+
+## Introduction
+
+A digital twin is a virtual replica of a physical system that mirrors its behavior, properties, and performance in real-time. In robotics, digital twins enable rapid prototyping, safe testing, and iterative development without physical hardware risks.
+
+**Learning Objectives:**
+- Understand digital twin concepts and benefits
+- Explore robot simulation architectures
+- Learn when to use simulation vs physical testing
+- Identify key simulation platforms for robotics
+
+## Theory
+
+### What is a Digital Twin?
+
+A digital twin creates a bidirectional connection between:
+- **Physical System**: Real robot with sensors and actuators
+- **Virtual Model**: Simulated robot with identical properties
+- **Data Flow**: Continuous synchronization of state
+
+```
+┌─────────────────┐     Sensor Data      ┌─────────────────┐
+│  Physical Robot │ ──────────────────> │  Digital Twin   │
+│                 │                       │  (Simulation)   │
+│  - Sensors      │ <────────────────── │                 │
+│  - Actuators    │    Control Commands   │  - Physics      │
+│  - State        │                       │  - Rendering    │
+└─────────────────┘                       └─────────────────┘
+```
+
+### Benefits of Digital Twins
+
+**1. Safe Testing**
+- Test dangerous scenarios (collisions, falls, edge cases)
+- No hardware damage during development
+- Rapid iteration without reset time
+
+**2. Cost Efficiency**
+- Develop algorithms before hardware availability
+- Parallelize testing across multiple virtual robots
+- Reduce physical wear and tear
+
+**3. Synthetic Data Generation**
+- Generate labeled training data at scale
+- Control environmental variables precisely
+- Simulate rare events
+
+**4. Validation & Verification**
+- Verify control algorithms in simulation first
+- Test edge cases exhaustively
+- Validate perception pipelines
+
+### Simulation Fidelity Levels
+
+Digital twins vary in accuracy and computational cost:
+
+| Fidelity Level | Physics | Rendering | Use Case |
+|----------------|---------|-----------|----------|
+| **Kinematic** | Geometric only | Low | Path planning, navigation |
+| **Dynamic** | Mass, inertia, forces | Medium | Control development, stability |
+| **High-Fidelity** | Contact, friction, deformation | High | Manipulation, sim-to-real |
+
+## Simulation Platforms for Robotics
+
+### Gazebo Classic & Gazebo Sim (Ignition)
+
+**Gazebo** is the most widely used open-source robot simulator, integrated tightly with ROS 2.
+
+**Features:**
+- ODE, Bullet, or DART physics engines
+- Sensor simulation (cameras, LiDAR, IMU, depth)
+- Plugin architecture for custom behaviors
+- URDF/SDF model support
+
+**Installation:**
+```bash
+# Install Gazebo with ROS 2 Humble
+sudo apt install ros-humble-gazebo-ros-pkgs
+```
+
+**When to Use:**
+- ROS 2 ecosystem projects
+- Mobile robots, manipulators, drones
+- Multi-robot systems
+- Custom sensor testing
+
+### NVIDIA Isaac Sim
+
+**Isaac Sim** provides photorealistic rendering and high-fidelity physics using Omniverse.
+
+**Features:**
+- RTX ray-tracing for camera simulation
+- PhysX 5 for accurate contact dynamics
+- Synthetic data generation (domain randomization)
+- ROS 2 integration via Isaac ROS
+
+**When to Use:**
+- Vision-based perception training
+- Sim-to-real transfer
+- High-precision manipulation
+- Warehouse/factory environments
+
+### Unity Robotics
+
+**Unity** offers a game-engine approach with excellent graphics and cross-platform support.
+
+**Features:**
+- Unity ML-Agents for reinforcement learning
+- Perception package for synthetic data
+- ROS-TCP-Connector for ROS 2 integration
+- VR/AR visualization
+
+**When to Use:**
+- Reinforcement learning training
+- Human-robot interaction visualization
+- Cross-platform deployment (Windows, Mac, Linux)
+
+### MuJoCo
+
+**MuJoCo** (Multi-Joint dynamics with Contact) specializes in fast, accurate contact dynamics.
+
+**Features:**
+- Optimized for control and planning
+- Excellent for legged robots
+- Python bindings (mujoco-py)
+- Recently open-sourced by DeepMind
+
+**When to Use:**
+- Bipedal locomotion
+- Contact-rich manipulation
+- Model-based control research
+
+## Simulation Workflow
+
+### 1. Model Creation
+- Design robot in URDF/SDF format
+- Define links, joints, sensors, actuators
+- Specify inertial properties
+
+### 2. Environment Setup
+- Create world file with obstacles, terrain
+- Configure lighting and rendering
+- Set physics engine parameters
+
+### 3. Control Integration
+- Launch ROS 2 nodes for perception, planning, control
+- Subscribe to sensor topics
+- Publish motor commands
+
+### 4. Testing & Iteration
+- Run scenarios in simulation
+- Log data for analysis
+- Refine algorithms based on results
+
+### 5. Sim-to-Real Transfer
+- Test on physical hardware
+- Identify simulation-reality gaps
+- Apply domain randomization if needed
+
+## Practical Example: Launching Gazebo with ROS 2
+
+```bash
+# Source ROS 2 workspace
+source /opt/ros/humble/setup.bash
+
+# Launch Gazebo with an empty world
+ros2 launch gazebo_ros gazebo.launch.py
+
+# Spawn a robot (example: TurtleBot3)
+export TURTLEBOT3_MODEL=waffle
+ros2 launch turtlebot3_gazebo turtlebot3_world.launch.py
+```
+
+## Simulation vs Reality Gap
+
+**Common Discrepancies:**
+- **Friction models**: Simulated friction may not match reality
+- **Sensor noise**: Real sensors have noise, bias, and drift
+- **Contact dynamics**: Grasping and collisions differ
+- **Latency**: Real systems have communication delays
+- **Environmental uncertainty**: Lighting, objects, textures vary
+
+**Mitigation Strategies:**
+- Domain randomization (vary physics parameters)
+- Sim-to-real transfer learning
+- Hybrid testing (sim first, then real validation)
+- Calibration using real-world data
+
+## Exercises
+
+1. **Install Gazebo** and launch the default empty world. Explore the GUI.
+2. **Compare simulation platforms**: List 3 scenarios where you'd choose Gazebo over Isaac Sim, and vice versa.
+3. **Identify sim-to-real gaps**: What aspects of a humanoid robot's gait would be hardest to simulate accurately?
+4. **Research a digital twin project**: Find an example of a digital twin used in manufacturing or healthcare robotics.
+
+## Summary
+
+Digital twins enable safe, cost-effective development of robotic systems by creating virtual replicas that mirror physical behavior. Simulation platforms like Gazebo, Isaac Sim, Unity, and MuJoCo offer varying levels of fidelity for different use cases, from path planning to high-precision manipulation.
+
+## Further Reading
+
+- [Gazebo Documentation](https://gazebosim.org/)
+- [NVIDIA Isaac Sim Overview](https://docs.omniverse.nvidia.com/isaacsim/latest/)
+- [Digital Twins in Robotics - IEEE Paper](https://ieeexplore.ieee.org/document/9387482)
+- "Digital Twin Technology for Physical AI" - NVIDIA Technical Blog

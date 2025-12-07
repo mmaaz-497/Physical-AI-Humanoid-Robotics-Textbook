@@ -1,0 +1,97 @@
+---
+id: physical-ai-architecture
+title: The Physical AI System Architecture
+sidebar_label: Physical AI Architecture
+sidebar_position: 5
+description: System architecture for Physical AI robots including sensing, planning, and actuation
+keywords: [system architecture, robotics architecture, sensing, planning, actuation]
+---
+
+# The Physical AI System Architecture
+
+## Introduction
+
+A Physical AI system integrates multiple components into a cohesive architecture that enables intelligent physical behavior.
+
+**Learning Objectives:**
+- Understand the canonical robotics architecture
+- Explore the sense-plan-act loop
+- Identify integration challenges
+
+## Theory
+
+### Sense-Plan-Act Architecture
+
+```
+┌─────────┐     ┌──────────┐     ┌─────────┐
+│ SENSING │ --> │ PLANNING │ --> │ ACTING  │
+└─────────┘     └──────────┘     └─────────┘
+     ^                                  |
+     └──────────── Feedback ────────────┘
+```
+
+### Layer Breakdown
+
+**1. Sensing Layer**
+- Cameras (RGB, depth, stereo)
+- LiDAR and range sensors
+- IMU (Inertial Measurement Unit)
+- Force/torque sensors
+- Tactile sensors
+- Audio microphones
+
+**2. Perception Layer**
+- Object detection & tracking
+- Semantic segmentation
+- SLAM (Simultaneous Localization and Mapping)
+- Pose estimation
+- Scene understanding
+
+**3. Planning Layer**
+- Path planning
+- Motion planning
+- Task planning
+- Grasp planning
+- High-level reasoning (LLM integration)
+
+**4. Control Layer**
+- Motor controllers
+- Balance controllers
+- Trajectory following
+- Compliance control
+
+**5. Actuation Layer**
+- Motors (servos, stepper, brushless)
+- Grippers and hands
+- Wheels/legs
+- Tool interfaces
+
+## System Integration
+
+### ROS 2 as Middleware
+- Node-based architecture
+- Message passing
+- Service calls
+- Action servers
+- Parameter management
+
+### Real-Time Considerations
+- Control loops: 100-1000 Hz
+- Perception: 10-60 Hz
+- Planning: 1-10 Hz
+- High-level reasoning: 0.1-1 Hz
+
+## Exercises
+
+1. Draw a sense-plan-act diagram for a robot vacuum
+2. What happens if sensing fails? Planning fails?
+3. Why do different subsystems run at different frequencies?
+
+## Summary
+
+Physical AI architectures integrate sensing, perception, planning, control, and actuation into real-time systems that enable robots to operate in the physical world.
+
+## Further Reading
+
+- [ROS 2 Design Philosophy](https://design.ros2.org/)
+- "Probabilistic Robotics" by Thrun, Burgard, Fox

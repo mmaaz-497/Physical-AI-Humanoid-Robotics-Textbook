@@ -1,0 +1,539 @@
+---
+id: humanoid-kinematics-locomotion
+title: Humanoid Kinematics & Locomotion
+sidebar_label: Humanoid Kinematics & Locomotion
+sidebar_position: 5
+description: Kinematics, dynamics, and bipedal locomotion for humanoid robots
+keywords: [humanoid, kinematics, locomotion, bipedal walking, balance, ZMP, whole-body control]
+---
+
+# Humanoid Kinematics & Locomotion
+
+## Introduction
+
+Humanoid robots require complex kinematics and control systems to achieve stable bipedal locomotion. This chapter covers forward/inverse kinematics, walking gaits, balance control using Zero Moment Point (ZMP), and whole-body motion planning.
+
+**Learning Objectives:**
+- Understand humanoid kinematic chains
+- Implement forward and inverse kinematics
+- Generate stable walking gaits with ZMP
+- Control balance and posture
+- Simulate humanoid locomotion in Isaac Sim and Gazebo
+
+## Theory
+
+### Humanoid Kinematic Structure
+
+**Typical Humanoid DOF (Degrees of Freedom):**
+
+```
+Head: 2-3 DOF (pan, tilt)
+Torso: 1-3 DOF (roll, pitch, yaw)
+Arms: 6-7 DOF each (shoulder 3, elbow 1, wrist 3)
+Legs: 6-7 DOF each (hip 3, knee 1, ankle 2-3)
+
+Total: 20-30 DOF
+```
+
+**Kinematic Chain Example (One Leg):**
+
+```
+Torso
+  └─ Hip (Roll, Pitch, Yaw)
+      └─ Thigh
+          └─ Knee (Pitch)
+              └─ Shin
+                  └─ Ankle (Roll, Pitch)
+                      └─ Foot
+```
+
+### Forward Kinematics
+
+**Definition**: Given joint angles, compute end-effector position
+
+**Denavit-Hartenberg (DH) Convention:**
+
+| Joint | θ (angle) | d (offset) | a (length) | α (twist) |
+|-------|-----------|------------|------------|-----------|
+| Hip Roll | q₁ | 0 | 0 | 90° |
+| Hip Pitch | q₂ | 0 | L_thigh | 0° |
+| Knee | q₃ | 0 | L_shin | 0° |
+| Ankle Pitch | q₄ | 0 | L_foot | 0° |
+
+**Homogeneous Transformation:**
+
+```python
+import numpy as np
+
+def dh_transform(theta, d, a, alpha):
+    """Compute transformation matrix from DH parameters"""
+    ct = np.cos(theta)
+    st = np.sin(theta)
+    ca = np.cos(alpha)
+    sa = np.sin(alpha)
+
+    return np.array([
+        [ct, -st*ca,  st*sa, a*ct],
+        [st,  ct*ca, -ct*sa, a*st],
+        [0,   sa,     ca,    d],
+        [0,   0,      0,     1]
+    ])
+
+def forward_kinematics(joint_angles, link_lengths):
+    """
+    Compute foot position from joint angles
+
+    Args:
+        joint_angles: [hip_roll, hip_pitch, knee, ankle_pitch]
+        link_lengths: [thigh, shin, foot]
+
+    Returns:
+        foot_position: (x, y, z) in world frame
+    """
+    # DH parameters for humanoid leg
+    T = np.eye(4)
+
+    # Hip roll
+    T = T @ dh_transform(joint_angles[0], 0, 0, np.pi/2)
+
+    # Hip pitch
+    T = T @ dh_transform(joint_angles[1], 0, link_lengths[0], 0)
+
+    # Knee
+    T = T @ dh_transform(joint_angles[2], 0, link_lengths[1], 0)
+
+    # Ankle pitch
+    T = T @ dh_transform(joint_angles[3], 0, link_lengths[2], 0)
+
+    # Extract position
+    foot_position = T[:3, 3]
+    return foot_position
+
+# Example usage
+joint_angles = [0, 0.5, -1.0, 0.5]  # radians
+link_lengths = [0.4, 0.4, 0.1]  # meters (thigh, shin, foot)
+
+foot_pos = forward_kinematics(joint_angles, link_lengths)
+print(f"Foot position: {foot_pos}")
+```
+
+### Inverse Kinematics
+
+**Definition**: Given desired end-effector position, compute joint angles
+
+**Analytical IK (Simplified Leg):**
+
+```python
+def inverse_kinematics_leg(target_position, link_lengths):
+    """
+    Compute joint angles to reach target foot position
+
+    Args:
+        target_position: (x, y, z) desired foot position
+        link_lengths: [thigh_length, shin_length]
+
+    Returns:
+        joint_angles: [hip_pitch, knee, ankle_pitch]
+    """
+    x, y, z = target_position
+    L1, L2 = link_lengths  # thigh, shin
+
+    # Distance from hip to target
+    r = np.sqrt(x**2 + z**2)
+
+    # Check if target is reachable
+    if r > (L1 + L2):
+        raise ValueError("Target unreachable")
+
+    # Knee angle (law of cosines)
+    cos_knee = (L1**2 + L2**2 - r**2) / (2 * L1 * L2)
+    knee = -np.arccos(np.clip(cos_knee, -1, 1))  # Negative for bent knee
+
+    # Hip angle
+    alpha = np.arctan2(z, x)
+    beta = np.arccos((L1**2 + r**2 - L2**2) / (2 * L1 * r))
+    hip_pitch = alpha - beta
+
+    # Ankle angle (to keep foot level)
+    ankle_pitch = -(hip_pitch + knee)
+
+    return [hip_pitch, knee, ankle_pitch]
+
+# Example: Place foot 0.3m forward, 0.7m down
+target = [0.3, 0, -0.7]
+link_lengths = [0.4, 0.4]
+
+angles = inverse_kinematics_leg(target, link_lengths)
+print(f"Joint angles: {np.degrees(angles)} degrees")
+```
+
+## Bipedal Locomotion
+
+### Zero Moment Point (ZMP)
+
+**Concept**: Point on ground where net moment from gravity and inertia is zero
+
+**Stability Condition**: ZMP must stay inside support polygon (foot footprint)
+
+```
+Support Polygon (single support):
+┌─────────────┐
+│  Left Foot  │  ← ZMP must be here
+└─────────────┘
+
+Support Polygon (double support):
+┌─────────────┐         ┌─────────────┐
+│  Left Foot  │#########│ Right Foot  │
+└─────────────┘         └─────────────┘
+     ↑ ZMP can be anywhere in shaded region
+```
+
+**ZMP Calculation:**
+
+```python
+def compute_zmp(com_position, com_acceleration, mass, gravity=9.81):
+    """
+    Compute Zero Moment Point
+
+    Args:
+        com_position: (x, y, z) center of mass position
+        com_acceleration: (ax, ay, az) COM acceleration
+        mass: robot mass (kg)
+        gravity: gravitational constant
+
+    Returns:
+        zmp: (x_zmp, y_zmp) zero moment point
+    """
+    x, y, z = com_position
+    ax, ay, az = com_acceleration
+
+    # ZMP formula
+    x_zmp = x - (z / (az + gravity)) * ax
+    y_zmp = y - (z / (az + gravity)) * ay
+
+    return (x_zmp, y_zmp)
+
+# Example
+com_pos = [0.0, 0.0, 0.8]  # COM at 0.8m height
+com_acc = [0.2, 0.0, 0.0]  # Accelerating forward
+mass = 50  # kg
+
+zmp = compute_zmp(com_pos, com_acc, mass)
+print(f"ZMP: {zmp}")
+
+# Check if ZMP is inside foot
+foot_bounds = {'x': [-0.1, 0.1], 'y': [-0.05, 0.05]}
+is_stable = (foot_bounds['x'][0] <= zmp[0] <= foot_bounds['x'][1] and
+             foot_bounds['y'][0] <= zmp[1] <= foot_bounds['y'][1])
+print(f"Stable: {is_stable}")
+```
+
+### Walking Gait Generation
+
+**Gait Phases:**
+
+1. **Double Support**: Both feet on ground
+2. **Single Support (Left)**: Right foot swinging
+3. **Double Support**: Both feet on ground
+4. **Single Support (Right)**: Left foot swinging
+
+**Simplified Walking Pattern Generator:**
+
+```python
+class WalkingPatternGenerator:
+    def __init__(self, step_length=0.2, step_height=0.05, step_duration=0.8):
+        """
+        Args:
+            step_length: Forward distance per step (m)
+            step_height: Maximum foot height during swing (m)
+            step_duration: Time for one step (s)
+        """
+        self.step_length = step_length
+        self.step_height = step_height
+        self.step_duration = step_duration
+
+    def generate_foot_trajectory(self, t, phase='swing'):
+        """
+        Generate foot trajectory for one step
+
+        Args:
+            t: Time in current step [0, step_duration]
+            phase: 'swing' or 'support'
+
+        Returns:
+            foot_pose: (x, y, z) foot position
+        """
+        if phase == 'support':
+            # Foot stays on ground
+            return (0, 0, 0)
+
+        # Swing phase - foot follows arc
+        s = t / self.step_duration  # Normalized time [0, 1]
+
+        x = self.step_length * s
+        z = self.step_height * np.sin(np.pi * s)  # Arc trajectory
+        y = 0
+
+        return (x, y, z)
+
+    def walk_cycle(self, num_steps=4, dt=0.01):
+        """Generate complete walking cycle"""
+        trajectory = []
+
+        for step in range(num_steps):
+            phase = 'swing' if step % 2 == 0 else 'support'
+
+            for t in np.arange(0, self.step_duration, dt):
+                left_foot = self.generate_foot_trajectory(t, phase)
+                right_foot = self.generate_foot_trajectory(
+                    t, 'support' if phase == 'swing' else 'swing'
+                )
+
+                trajectory.append({
+                    'time': step * self.step_duration + t,
+                    'left_foot': left_foot,
+                    'right_foot': right_foot
+                })
+
+        return trajectory
+
+# Generate walking trajectory
+wpg = WalkingPatternGenerator(step_length=0.2, step_height=0.05)
+traj = wpg.walk_cycle(num_steps=4)
+
+# Visualize (first few steps)
+for i in range(0, len(traj), 10):
+    print(f"t={traj[i]['time']:.2f}: Left={traj[i]['left_foot']}, Right={traj[i]['right_foot']}")
+```
+
+## ROS 2 Integration
+
+### Humanoid Control Node
+
+```python
+import rclpy
+from rclpy.node import Node
+from sensor_msgs.msg import JointState
+from geometry_msgs.msg import Twist
+import numpy as np
+
+class HumanoidController(Node):
+    def __init__(self):
+        super().__init__('humanoid_controller')
+
+        # Publishers
+        self.joint_pub = self.create_publisher(JointState, '/joint_commands', 10)
+
+        # Subscribers
+        self.cmd_sub = self.create_subscription(
+            Twist, '/cmd_vel', self.cmd_callback, 10
+        )
+
+        # Walking pattern generator
+        self.wpg = WalkingPatternGenerator()
+
+        # Control loop
+        self.timer = self.create_timer(0.01, self.control_loop)
+
+        self.current_step = 0
+        self.trajectory = self.wpg.walk_cycle(num_steps=100)
+
+        self.get_logger().info("Humanoid controller ready")
+
+    def cmd_callback(self, msg):
+        """Process velocity commands"""
+        linear_vel = msg.linear.x
+        angular_vel = msg.angular.z
+
+        # Adjust step length based on commanded velocity
+        self.wpg.step_length = linear_vel * 0.5
+
+    def control_loop(self):
+        """Main control loop"""
+        if self.current_step >= len(self.trajectory):
+            return
+
+        # Get current foot targets
+        step = self.trajectory[self.current_step]
+        left_foot = step['left_foot']
+        right_foot = step['right_foot']
+
+        # Compute IK for both legs
+        left_angles = inverse_kinematics_leg(left_foot, [0.4, 0.4])
+        right_angles = inverse_kinematics_leg(right_foot, [0.4, 0.4])
+
+        # Publish joint commands
+        joint_msg = JointState()
+        joint_msg.header.stamp = self.get_clock().now().to_msg()
+        joint_msg.name = [
+            'left_hip_pitch', 'left_knee', 'left_ankle_pitch',
+            'right_hip_pitch', 'right_knee', 'right_ankle_pitch'
+        ]
+        joint_msg.position = list(left_angles) + list(right_angles)
+
+        self.joint_pub.publish(joint_msg)
+
+        self.current_step += 1
+
+def main():
+    rclpy.init()
+    node = HumanoidController()
+    rclpy.spin(node)
+```
+
+## Simulation
+
+### Isaac Sim Humanoid Setup
+
+**Load Humanoid Robot:**
+
+```python
+from omni.isaac.core import World
+from omni.isaac.core.robots import Robot
+from omni.isaac.core.utils.types import ArticulationAction
+
+# Create world
+world = World()
+
+# Load humanoid (e.g., H1 robot)
+robot = world.scene.add(
+    Robot(
+        prim_path="/World/H1",
+        name="H1_robot",
+        usd_path="/path/to/h1_robot.usd"
+    )
+)
+
+# Get joint names
+joint_names = robot.dof_names
+print(f"Joints: {joint_names}")
+
+# Set joint positions
+joint_positions = {
+    'left_hip_pitch': 0.5,
+    'left_knee': -1.0,
+    'left_ankle_pitch': 0.5,
+    'right_hip_pitch': 0.5,
+    'right_knee': -1.0,
+    'right_ankle_pitch': 0.5
+}
+
+robot.set_joint_positions(joint_positions)
+
+# Simulate
+world.reset()
+for i in range(1000):
+    world.step(render=True)
+```
+
+### Balance Control
+
+**PID Controller for Upright Posture:**
+
+```python
+class BalanceController:
+    def __init__(self, kp=100, kd=10):
+        """PID gains for balance control"""
+        self.kp = kp
+        self.kd = kd
+        self.target_angle = 0  # Upright
+
+    def compute_torque(self, current_angle, angular_velocity):
+        """
+        Compute ankle torque to maintain balance
+
+        Args:
+            current_angle: Body pitch angle (radians)
+            angular_velocity: Body angular velocity (rad/s)
+
+        Returns:
+            torque: Ankle torque to apply
+        """
+        error = self.target_angle - current_angle
+        torque = self.kp * error - self.kd * angular_velocity
+        return torque
+
+# Example: Robot is tilting forward
+balance_ctrl = BalanceController(kp=100, kd=10)
+body_angle = 0.05  # 5 degrees forward tilt
+angular_vel = 0.1  # tilting forward
+
+torque = balance_ctrl.compute_torque(body_angle, angular_vel)
+print(f"Apply ankle torque: {torque} Nm")
+# Positive torque will push robot backward to restore balance
+```
+
+## Advanced: Whole-Body Control
+
+**Quadratic Programming (QP) for Multi-Objective Control:**
+
+```python
+import cvxpy as cp
+
+def whole_body_control(desired_com, desired_foot_force, mass=50):
+    """
+    Compute joint torques using QP optimization
+
+    Objectives:
+    - Achieve desired COM position
+    - Apply desired foot contact forces
+    - Minimize joint torques
+
+    Args:
+        desired_com: (x, y, z) desired center of mass
+        desired_foot_force: (fx, fy, fz) desired ground reaction force
+        mass: robot mass (kg)
+
+    Returns:
+        joint_torques: Optimized joint torques
+    """
+    num_joints = 12
+
+    # Decision variables
+    tau = cp.Variable(num_joints)  # Joint torques
+
+    # Objective: Minimize torques (energy efficiency)
+    objective = cp.Minimize(cp.sum_squares(tau))
+
+    # Constraints
+    constraints = []
+
+    # Torque limits
+    tau_max = 100  # Nm
+    constraints.append(tau >= -tau_max)
+    constraints.append(tau <= tau_max)
+
+    # TODO: Add dynamics constraints (Jacobian, contact forces, etc.)
+
+    # Solve
+    prob = cp.Problem(objective, constraints)
+    prob.solve()
+
+    return tau.value
+
+# Example
+desired_com = [0.0, 0.0, 0.8]
+desired_force = [0, 0, 50*9.81]  # Support robot weight
+
+torques = whole_body_control(desired_com, desired_force)
+print(f"Optimal joint torques: {torques}")
+```
+
+## Exercises
+
+1. **Forward Kinematics**: Implement FK for a 6-DOF leg and verify with visualization
+2. **Inverse Kinematics**: Solve IK for foot placement targets
+3. **Walking Gait**: Generate and visualize walking trajectory
+4. **ZMP Stability**: Compute ZMP during walking and ensure it stays in support polygon
+5. **Simulation**: Implement balance controller in Isaac Sim or Gazebo
+
+## Summary
+
+Humanoid locomotion requires forward and inverse kinematics to compute joint angles for desired foot positions. Bipedal walking uses gait generation with ZMP stability criteria to prevent falls. ROS 2 controllers integrate with simulators like Isaac Sim for testing. Whole-body control uses optimization to balance multiple objectives like COM control, contact forces, and energy efficiency.
+
+## Further Reading
+
+- [Introduction to Humanoid Robotics](https://www.springer.com/gp/book/9783642541353)
+- [ZMP Walking Pattern Generation](https://scaron.info/teaching/zero-tilting-moment-point.html)
+- [Bipedal Locomotion Control](https://manipulation.csail.mit.edu/humanoids.html)
+- [Whole-Body Control Tutorial](https://github.com/machines-in-motion/mim_control)

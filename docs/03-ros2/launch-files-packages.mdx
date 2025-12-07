@@ -1,0 +1,279 @@
+---
+id: launch-files-packages
+title: Launch Files and Packages
+sidebar_label: Launch Files & Packages
+sidebar_position: 5
+description: Organize ROS 2 code into packages and launch files
+keywords: [ROS 2, launch files, packages, colcon]
+---
+
+# Launch Files and Packages
+
+## Introduction
+
+ROS 2 packages organize related nodes, launch files, and resources. Launch files automate starting multiple nodes with specific configurations.
+
+**Learning Objectives:**
+- Create ROS 2 packages with proper structure
+- Write launch files to start multiple nodes
+- Build packages with colcon
+- Manage dependencies
+
+## What is a ROS 2 Package?
+
+A **package** is the basic unit of ROS 2 software organization containing:
+- **Nodes**: Executable programs
+- **Launch files**: Automation scripts
+- **Configuration**: Parameters, URDF files
+- **Dependencies**: Other packages required
+
+### Package Structure
+
+```
+my_robot_pkg/
+├── package.xml          # Package metadata and dependencies
+├── setup.py             # Python package setup
+├── setup.cfg            # Install configuration
+├── my_robot_pkg/        # Python source code
+│   ├── __init__.py
+│   └── my_node.py
+├── launch/              # Launch files
+│   └── robot.launch.py
+├── config/              # Configuration files
+│   └── params.yaml
+└── urdf/                # Robot descriptions
+    └── robot.urdf
+```
+
+## Creating a Package
+
+```bash
+# Navigate to workspace src directory
+cd ~/ros2_ws/src
+
+# Create Python package
+ros2 pkg create --build-type ament_python my_robot_pkg \
+  --dependencies rclpy std_msgs
+
+# Create C++ package
+ros2 pkg create --build-type ament_cmake my_cpp_pkg \
+  --dependencies rclcpp std_msgs
+```
+
+### Package.xml
+
+```xml
+<?xml version="1.0"?>
+<package format="3">
+  <name>my_robot_pkg</name>
+  <version>1.0.0</version>
+  <description>My robot package</description>
+  <maintainer email="you@example.com">Your Name</maintainer>
+  <license>Apache-2.0</license>
+
+  <!-- Build dependencies -->
+  <depend>rclpy</depend>
+  <depend>std_msgs</depend>
+  <depend>sensor_msgs</depend>
+
+  <test_depend>ament_copyright</test_depend>
+  <test_depend>ament_flake8</test_depend>
+  <test_depend>ament_pep257</test_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>
+```
+
+## Building Packages with Colcon
+
+```bash
+# Navigate to workspace root
+cd ~/ros2_ws
+
+# Build all packages
+colcon build
+
+# Build specific package
+colcon build --packages-select my_robot_pkg
+
+# Build with symlink (no rebuild for Python changes)
+colcon build --symlink-install
+
+# Source the workspace
+source install/setup.bash
+```
+
+## Launch Files
+
+Launch files start multiple nodes with configurations in one command.
+
+### Python Launch File (Recommended)
+
+```python
+# launch/robot.launch.py
+from launch import LaunchDescription
+from launch_ros.actions import Node
+
+def generate_launch_description():
+    return LaunchDescription([
+        Node(
+            package='my_robot_pkg',
+            executable='camera_node',
+            name='camera',
+            output='screen',
+            parameters=[{'frame_rate': 30}]
+        ),
+        Node(
+            package='my_robot_pkg',
+            executable='controller_node',
+            name='controller',
+            output='screen',
+            remappings=[
+                ('/input', '/camera/image'),
+            ]
+        ),
+    ])
+```
+
+### Running Launch Files
+
+```bash
+# Run launch file
+ros2 launch my_robot_pkg robot.launch.py
+
+# Pass arguments
+ros2 launch my_robot_pkg robot.launch.py use_sim:=true
+```
+
+### Launch File with Parameters
+
+```python
+from launch import LaunchDescription
+from launch.actions import DeclareLaunchArgument
+from launch.substitutions import LaunchConfiguration
+from launch_ros.actions import Node
+import os
+from ament_index_python.packages import get_package_share_directory
+
+def generate_launch_description():
+    # Declare arguments
+    use_sim_arg = DeclareLaunchArgument(
+        'use_sim',
+        default_value='false',
+        description='Use simulation time'
+    )
+
+    # Load parameter file
+    config = os.path.join(
+        get_package_share_directory('my_robot_pkg'),
+        'config',
+        'params.yaml'
+    )
+
+    # Define nodes
+    robot_node = Node(
+        package='my_robot_pkg',
+        executable='robot_node',
+        name='robot',
+        parameters=[config, {'use_sim_time': LaunchConfiguration('use_sim')}],
+        output='screen'
+    )
+
+    return LaunchDescription([
+        use_sim_arg,
+        robot_node,
+    ])
+```
+
+### Parameter File (YAML)
+
+```yaml
+# config/params.yaml
+robot_node:
+  ros__parameters:
+    max_speed: 1.0
+    min_distance: 0.5
+    update_rate: 10.0
+    robot_name: "my_robot"
+```
+
+## Including Other Launch Files
+
+```python
+from launch import LaunchDescription
+from launch.actions import IncludeLaunchDescription
+from launch.launch_description_sources import PythonLaunchDescriptionSource
+from ament_index_python.packages import get_package_share_directory
+import os
+
+def generate_launch_description():
+    # Include Gazebo launch
+    gazebo_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource([
+            os.path.join(get_package_share_directory('gazebo_ros'), 'launch'),
+            '/gazebo.launch.py'
+        ])
+    )
+
+    return LaunchDescription([
+        gazebo_launch,
+        # Your nodes here
+    ])
+```
+
+## Workspace Workflow
+
+```bash
+# 1. Create workspace
+mkdir -p ~/ros2_ws/src
+cd ~/ros2_ws/src
+
+# 2. Create package
+ros2 pkg create my_robot_pkg --build-type ament_python
+
+# 3. Write code in my_robot_pkg/my_robot_pkg/
+
+# 4. Update setup.py entry points
+# entry_points={
+#     'console_scripts': [
+#         'my_node = my_robot_pkg.my_node:main',
+#     ],
+# },
+
+# 5. Build
+cd ~/ros2_ws
+colcon build --symlink-install
+
+# 6. Source
+source install/setup.bash
+
+# 7. Run
+ros2 run my_robot_pkg my_node
+```
+
+## Best Practices
+
+1. **One package per robot/subsystem**: Don't mix unrelated code
+2. **Use launch files**: Don't start nodes manually
+3. **Parameter files for config**: Keep parameters in YAML files
+4. **Symlink install for Python**: Faster iteration with `--symlink-install`
+5. **Declare dependencies**: Add all dependencies to `package.xml`
+
+## Exercises
+
+1. Create a ROS 2 package for a simple robot
+2. Write a launch file that starts a publisher and subscriber
+3. Add a parameter file and load it in the launch file
+4. Build and run your package
+
+## Summary
+
+ROS 2 packages organize code, dependencies, and resources. Launch files automate multi-node startup. Colcon builds packages in a workspace.
+
+## Further Reading
+
+- [ROS 2 Package Creation](https://docs.ros.org/en/humble/Tutorials/Creating-Your-First-ROS2-Package.html)
+- [Launch File Tutorial](https://docs.ros.org/en/humble/Tutorials/Launch-Files/Creating-Launch-Files.html)
+- [Colcon Documentation](https://colcon.readthedocs.io/)

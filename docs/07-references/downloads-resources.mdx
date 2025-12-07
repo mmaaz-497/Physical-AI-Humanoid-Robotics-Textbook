@@ -1,0 +1,393 @@
+---
+id: downloads-resources
+title: Downloads & Resources
+sidebar_label: Downloads & Resources
+sidebar_position: 4
+description: Essential downloads, datasets, and learning resources for Physical AI development
+keywords: [downloads, resources, datasets, tools, learning materials]
+---
+
+# Downloads & Resources
+
+## Software Downloads
+
+### ROS 2
+
+**ROS 2 Humble (Ubuntu 22.04)**
+- Download: https://docs.ros.org/en/humble/Installation.html
+- Desktop Install: `sudo apt install ros-humble-desktop`
+- Tutorials: https://docs.ros.org/en/humble/Tutorials.html
+
+**ROS 2 Iron (Latest)**
+- Download: https://docs.ros.org/en/iron/Installation.html
+- For newer features and hardware support
+
+### NVIDIA Isaac
+
+**Isaac Sim**
+- Download: https://www.nvidia.com/en-us/omniverse/download/
+- Requires: Omniverse Launcher
+- GPU: NVIDIA RTX 2080 or better
+- Docs: https://docs.omniverse.nvidia.com/isaacsim/
+
+**Isaac ROS**
+- GitHub: https://github.com/NVIDIA-ISAAC-ROS
+- Installation: https://nvidia-isaac-ros.github.io/getting_started/index.html
+- Packages: Perception, VSLAM, Image Processing, DNN Inference
+
+**Jetson SDK**
+- JetPack: https://developer.nvidia.com/embedded/jetpack
+- For Jetson Orin, Xavier, Nano
+- Includes: CUDA, TensorRT, cuDNN, VPI
+
+### Simulation Tools
+
+**Gazebo Classic**
+- Download: https://classic.gazebosim.org/download
+- Ubuntu: `sudo apt install gazebo11`
+- Models: https://github.com/osrf/gazebo_models
+
+**Gazebo Ignition (Fortress)**
+- Download: https://gazebosim.org/docs/fortress/install
+- Modern architecture, better performance
+- Ubuntu: `sudo apt install ignition-fortress`
+
+**Unity**
+- Download: https://unity.com/download
+- Unity Hub: Manage multiple versions
+- Unity Robotics Hub: https://github.com/Unity-Technologies/Unity-Robotics-Hub
+
+### AI & ML Frameworks
+
+**PyTorch**
+- Download: https://pytorch.org/get-started/locally/
+- CUDA support: `pip3 install torch torchvision --index-url https://download.pytorch.org/whl/cu118`
+
+**TensorFlow**
+- Download: https://www.tensorflow.org/install
+- With GPU: `pip install tensorflow[and-cuda]`
+
+**Hugging Face Transformers**
+- Install: `pip install transformers`
+- Models: https://huggingface.co/models
+- Includes: BERT, GPT, Llama, CLIP
+
+### Vision & Perception
+
+**OpenCV**
+- Install: `pip install opencv-python opencv-contrib-python`
+- Docs: https://docs.opencv.org/
+
+**YOLOv8 (Ultralytics)**
+- Install: `pip install ultralytics`
+- GitHub: https://github.com/ultralytics/ultralytics
+- Models: https://docs.ultralytics.com/models/yolov8/
+
+**Segment Anything (SAM)**
+- GitHub: https://github.com/facebookresearch/segment-anything
+- Install: `pip install segment-anything`
+- Checkpoint: Download from repo
+
+**MiDaS (Depth Estimation)**
+- GitHub: https://github.com/isl-org/MiDaS
+- Models: Auto-downloaded via torch.hub
+
+### Speech & Language
+
+**Whisper (Speech Recognition)**
+- GitHub: https://github.com/openai/whisper
+- Install: `pip install openai-whisper`
+- Models: tiny, base, small, medium, large
+
+**Llama 3**
+- Hugging Face: https://huggingface.co/meta-llama
+- Install: `pip install transformers`
+- Quantized models available via Ollama
+
+**Ollama (Local LLM Runtime)**
+- Download: https://ollama.ai/download
+- Models: Llama 3, Mistral, Phi, CodeLlama
+- Usage: `ollama run llama3`
+
+## Datasets
+
+### Robotics Datasets
+
+**Open X-Embodiment**
+- URL: https://robotics-transformer-x.github.io/
+- 1M+ robot trajectories across 22 robot types
+- Tasks: Manipulation, navigation, bimanual
+
+**RoboNet**
+- URL: https://www.robonet.wiki/
+- 15M video frames from 7 robot platforms
+- Self-supervised learning benchmark
+
+**BridgeData V2**
+- GitHub: https://github.com/rail-berkeley/bridge_data_v2
+- 60K demonstrations for manipulation
+- Everyday household tasks
+
+### Vision Datasets
+
+**COCO (Object Detection)**
+- URL: https://cocodataset.org/
+- 330K images, 80 object categories
+- Bounding boxes, segmentation masks
+
+**ImageNet**
+- URL: https://www.image-net.org/
+- 14M images, 20K categories
+- Pre-training for vision models
+
+**Cityscapes (Autonomous Driving)**
+- URL: https://www.cityscapes-dataset.com/
+- Urban street scenes
+- Semantic segmentation annotations
+
+### 3D & Depth Datasets
+
+**ScanNet**
+- URL: http://www.scan-net.org/
+- RGB-D scans of indoor scenes
+- 3D semantic segmentation
+
+**ShapeNet**
+- URL: https://shapenet.org/
+- 3D CAD models (chairs, tables, etc.)
+- For grasp planning and simulation
+
+## Robot Assets
+
+### URDF Models
+
+**ROS Robot Models**
+- GitHub: https://github.com/ros-simulation
+- TurtleBot, PR2, Husky, Jackal
+
+**Fetch & Freight**
+- GitHub: https://github.com/fetchrobotics/fetch_ros
+- Mobile manipulation robot
+
+**Franka Emika Panda**
+- GitHub: https://github.com/frankaemika/franka_ros
+- 7-DOF collaborative arm
+
+### Isaac Sim Assets
+
+**NVIDIA Asset Library**
+- Location: `/Isaac/` in Omniverse Content Browser
+- Robots: Franka, Carter, Jetbot, ANYmal
+- Environments: Warehouse, office, outdoor
+
+**SketchFab**
+- URL: https://sketchfab.com/
+- 3D models (convert to USD)
+- Filter: "Downloadable" and "CC licensed"
+
+## Learning Resources
+
+### Online Courses
+
+**ROS 2 for Beginners**
+- Udemy: https://www.udemy.com/course/ros2-for-beginners/
+- YouTube: The Construct (free)
+
+**Modern Robotics (Northwestern)**
+- Coursera: https://www.coursera.org/specializations/modernrobotics
+- Textbook: http://hades.mech.northwestern.edu/index.php/Modern_Robotics
+- Free PDF and Python library
+
+**Deep Learning for Robotics (Berkeley)**
+- CS 287: https://sites.google.com/view/berkeley-cs287-fa23
+- Lecture videos and slides
+
+**Underactuated Robotics (MIT)**
+- Course: https://underactuated.csail.mit.edu/
+- Focus: legged robots, manipulation
+- Drake simulator tutorials
+
+### Books
+
+**Probabilistic Robotics**
+- Authors: Thrun, Burgard, Fox
+- Topics: SLAM, localization, Kalman filters
+- PDF: Often available from university libraries
+
+**Modern Robotics**
+- Authors: Lynch, Park
+- Free PDF: http://hades.mech.northwestern.edu/index.php/Modern_Robotics
+- Python/MATLAB code included
+
+**Introduction to Autonomous Mobile Robots**
+- Authors: Siegwart, Nourbakhsh, Scaramuzza
+- Topics: Sensors, localization, navigation
+
+### YouTube Channels
+
+**The Construct**
+- URL: https://www.youtube.com/@TheConstructsim
+- ROS 2 tutorials, simulations
+
+**Articulated Robotics**
+- URL: https://www.youtube.com/@ArticulatedRobotics
+- URDF modeling, ROS 2 hardware integration
+
+**Robotics Back-End**
+- URL: https://www.youtube.com/@RoboticsBackEnd
+- ROS 2 programming tutorials
+
+**IEEE Spectrum Robotics**
+- URL: https://www.youtube.com/@IEEESpectrum
+- Latest robotics research and demos
+
+### Communities & Forums
+
+**ROS Discourse**
+- URL: https://discourse.ros.org/
+- Official ROS community forum
+
+**Reddit r/robotics**
+- URL: https://www.reddit.com/r/robotics/
+- General robotics discussions
+
+**NVIDIA Isaac Forums**
+- URL: https://forums.developer.nvidia.com/c/omniverse/isaac/589
+- Isaac Sim, Isaac ROS support
+
+**ROS Answers**
+- URL: https://answers.ros.org/
+- Q&A for ROS-specific issues
+
+## Tools & Utilities
+
+### CAD to URDF Converters
+
+**Fusion 360 to URDF**
+- GitHub: https://github.com/syuntoku14/fusion2urdf
+- Export Fusion 360 designs to ROS
+
+**SolidWorks to URDF**
+- Plugin: http://wiki.ros.org/sw_urdf_exporter
+- Official SolidWorks exporter
+
+**Blender USD Exporter**
+- Built into Blender 3.0+
+- Export to Isaac Sim compatible format
+
+### Visualization Tools
+
+**FoxGlove Studio**
+- Download: https://foxglove.dev/
+- Modern alternative to RViz
+- Web-based, cross-platform
+
+**PlotJuggler**
+- GitHub: https://github.com/facontidavide/PlotJuggler
+- Real-time ROS data plotting
+- Install: `sudo apt install ros-humble-plotjuggler`
+
+**Meshlab**
+- Download: https://www.meshlab.net/
+- 3D mesh viewer and editor
+
+### Development Tools
+
+**VS Code ROS Extension**
+- Install: Search "ROS" in VS Code Extensions
+- Syntax highlighting, autocomplete
+- Launch file debugging
+
+**Terminator**
+- Install: `sudo apt install terminator`
+- Multiple terminal panes
+- Great for ROS development
+
+**Docker Images**
+- ROS Official: https://hub.docker.com/_/ros
+- Isaac Sim: https://catalog.ngc.nvidia.com/orgs/nvidia/containers/isaac-sim
+- Pre-configured environments
+
+## Hardware Vendors
+
+### Development Boards
+
+**NVIDIA Jetson**
+- Orin Nano: https://www.nvidia.com/en-us/autonomous-machines/embedded-systems/jetson-orin/
+- Budget: $499, AGX: $1999
+
+**Raspberry Pi**
+- Pi 5: https://www.raspberrypi.com/products/raspberry-pi-5/
+- Budget robotics platform
+
+### Cameras
+
+**Intel RealSense**
+- D435i: Depth + RGB + IMU ($329)
+- D455: Longer range ($389)
+- Store: https://www.intelrealsense.com/
+
+**ZED 2/2i**
+- Stereo camera with AI
+- ZED 2: $449, ZED 2i: $599
+- Store: https://store.stereolabs.com/
+
+**OAK-D**
+- Depth AI camera ($149)
+- On-device neural network processing
+- Store: https://shop.luxonis.com/
+
+### Robot Kits
+
+**TurtleBot 4**
+- Mobile robot platform ($1,395+)
+- ROS 2 native
+- Store: https://clearpathrobotics.com/turtlebot-4/
+
+**Franka Emika FR3**
+- 7-DOF collaborative arm
+- Research version: Contact Franka
+- Website: https://www.franka.de/
+
+## Research Papers
+
+### Foundational Papers
+
+**RT-2: Vision-Language-Action Models**
+- Paper: https://robotics-transformer2.github.io/
+
+**PaLM-E: Embodied Multimodal Language Model**
+- Paper: https://palm-e.github.io/
+
+**Diffusion Policy for Visuomotor Control**
+- Paper: https://diffusion-policy.cs.columbia.edu/
+
+**OpenVLA: Open Vision-Language-Action Model**
+- Paper: https://openvla.github.io/
+
+### Conferences
+
+**ICRA (International Conference on Robotics and Automation)**
+- Papers: https://ieeexplore.ieee.org/xpl/conhome/1000639/all-proceedings
+
+**RSS (Robotics: Science and Systems)**
+- Papers: https://roboticsconference.org/
+
+**CoRL (Conference on Robot Learning)**
+- Papers: https://www.robot-learning.org/
+
+## Stay Updated
+
+**arXiv Robotics**
+- URL: https://arxiv.org/list/cs.RO/recent
+- Latest robotics research preprints
+
+**Robotic Process Newsletter**
+- URL: https://www.therobotreport.com/
+- Weekly robotics industry news
+
+**Andrej Karpathy's Zero to Hero**
+- URL: https://karpathy.ai/zero-to-hero.html
+- Deep learning fundamentals
+
+This resource list is continuously updated. Check official websites for latest versions and pricing.

@@ -1,0 +1,114 @@
+---
+id: introduction-to-ros2
+title: Introduction to Robotic Nervous System (ROS 2)
+sidebar_label: Introduction to ROS 2
+sidebar_position: 1
+description: Getting started with Robot Operating System 2
+keywords: [ROS 2, robotics, middleware]
+---
+
+# Introduction to Robotic Nervous System (ROS 2)
+
+## Introduction
+
+ROS 2 (Robot Operating System 2) is an open-source middleware framework that provides the communication backbone for robotics applications. Think of it as the nervous system that connects sensors, controllers, and actuators in a robot.
+
+**Learning Objectives:**
+- Understand what ROS 2 is and why it's used
+- Learn the core architecture concepts
+- Install and verify ROS 2 Humble
+- Run your first ROS 2 nodes
+
+## What is ROS 2?
+
+ROS 2 is NOT an operating system but a **middleware** that runs on top of Linux (Ubuntu 22.04 recommended). It provides:
+
+- **Communication infrastructure**: Nodes talk via topics, services, and actions
+- **Hardware abstraction**: Same code works on different robots
+- **Tools**: Visualization (RViz), simulation (Gazebo), debugging
+- **Packages**: Reusable libraries for navigation, perception, manipulation
+
+### Key Improvements Over ROS 1
+
+- **Real-time support**: Deterministic communication for safety-critical systems
+- **Security**: Encrypted and authenticated communication
+- **Multi-robot**: Native support for robot swarms
+- **Cross-platform**: Works on Linux, Windows, macOS
+
+## Core Concepts
+
+### Nodes
+Independent processes that perform specific tasks (e.g., camera driver, path planner).
+
+### Topics
+Asynchronous publish-subscribe channels for streaming data (e.g., sensor readings).
+
+### Services
+Synchronous request-response patterns (e.g., "calculate path from A to B").
+
+### Actions
+Long-running tasks with feedback (e.g., "navigate to goal, send progress updates").
+
+## Installation (Ubuntu 22.04)
+
+```bash
+# Add ROS 2 repository
+sudo apt update && sudo apt install -y software-properties-common
+sudo add-apt-repository universe
+sudo apt update && sudo apt install curl -y
+sudo curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg
+
+# Install ROS 2 Humble Desktop
+sudo apt update
+sudo apt install ros-humble-desktop -y
+
+# Source ROS 2 environment
+source /opt/ros/humble/setup.bash
+echo "source /opt/ros/humble/setup.bash" >> ~/.bashrc
+```
+
+## Verification
+
+Test your installation:
+
+```bash
+# Terminal 1: Run a talker node
+ros2 run demo_nodes_cpp talker
+
+# Terminal 2: Run a listener node
+ros2 run demo_nodes_cpp listener
+```
+
+You should see the listener receiving messages from the talker.
+
+## ROS 2 CLI Tools
+
+```bash
+# List running nodes
+ros2 node list
+
+# List active topics
+ros2 topic list
+
+# See topic messages
+ros2 topic echo /chatter
+
+# Get node info
+ros2 node info /talker
+```
+
+## Exercises
+
+1. Install ROS 2 Humble on Ubuntu 22.04
+2. Run the talker/listener demo
+3. Use `ros2 topic echo` to view messages
+4. Explore available ROS 2 packages with `ros2 pkg list`
+
+## Summary
+
+ROS 2 is the communication middleware that enables modular, distributed robotics systems. It provides nodes, topics, services, and actions as building blocks for robot software.
+
+## Further Reading
+
+- [ROS 2 Documentation](https://docs.ros.org/en/humble/)
+- [ROS 2 Design Philosophy](https://design.ros2.org/)

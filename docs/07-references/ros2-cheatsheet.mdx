@@ -1,0 +1,453 @@
+---
+id: ros2-cheatsheet
+title: ROS 2 Cheatsheet
+sidebar_label: ROS 2 Cheatsheet
+sidebar_position: 2
+description: Quick reference for ROS 2 commands, patterns, and common operations
+keywords: [ROS 2, cheatsheet, commands, reference, quick guide]
+---
+
+# ROS 2 Cheatsheet
+
+## Installation & Setup
+
+```bash
+# Install ROS 2 Humble (Ubuntu 22.04)
+sudo apt update && sudo apt install ros-humble-desktop
+
+# Source ROS 2
+source /opt/ros/humble/setup.bash
+
+# Add to ~/.bashrc for automatic sourcing
+echo "source /opt/ros/humble/setup.bash" >> ~/.bashrc
+```
+
+## Workspace Management
+
+```bash
+# Create workspace
+mkdir -p ~/ros2_ws/src
+cd ~/ros2_ws
+
+# Build workspace
+colcon build --symlink-install
+
+# Source workspace
+source install/setup.bash
+
+# Clean build
+rm -rf build install log
+colcon build
+```
+
+## Package Management
+
+```bash
+# Create package (C++)
+ros2 pkg create my_package --build-type ament_cmake --dependencies rclcpp
+
+# Create package (Python)
+ros2 pkg create my_package --build-type ament_python --dependencies rclpy
+
+# List packages
+ros2 pkg list
+
+# Get package info
+ros2 pkg prefix my_package
+```
+
+## Node Commands
+
+```bash
+# List running nodes
+ros2 node list
+
+# Get node info
+ros2 node info /my_node
+
+# Run node
+ros2 run package_name node_name
+
+# Run node with remapping
+ros2 run package_name node_name --ros-args -r __node:=new_name
+```
+
+## Topic Commands
+
+```bash
+# List topics
+ros2 topic list
+
+# Show topic type
+ros2 topic type /my_topic
+
+# Echo topic data
+ros2 topic echo /my_topic
+
+# Show topic info
+ros2 topic info /my_topic
+
+# Publish to topic (String)
+ros2 topic pub /my_topic std_msgs/msg/String "data: 'Hello'"
+
+# Publish at rate (10 Hz)
+ros2 topic pub -r 10 /cmd_vel geometry_msgs/msg/Twist "{linear: {x: 0.5}, angular: {z: 0.0}}"
+
+# Show message definition
+ros2 interface show geometry_msgs/msg/Twist
+```
+
+## Service Commands
+
+```bash
+# List services
+ros2 service list
+
+# Show service type
+ros2 service type /my_service
+
+# Call service
+ros2 service call /my_service std_srvs/srv/Empty
+
+# Call service with arguments
+ros2 service call /add_two_ints example_interfaces/srv/AddTwoInts "{a: 5, b: 3}"
+
+# Show service definition
+ros2 interface show std_srvs/srv/Empty
+```
+
+## Parameter Commands
+
+```bash
+# List parameters
+ros2 param list
+
+# Get parameter value
+ros2 param get /my_node my_param
+
+# Set parameter value
+ros2 param set /my_node my_param 10.5
+
+# Dump parameters to file
+ros2 param dump /my_node > params.yaml
+
+# Load parameters from file
+ros2 param load /my_node params.yaml
+```
+
+## Launch Files
+
+**Python Launch File** (`my_launch.py`):
+
+```python
+from launch import LaunchDescription
+from launch_ros.actions import Node
+
+def generate_launch_description():
+    return LaunchDescription([
+        Node(
+            package='my_package',
+            executable='my_node',
+            name='my_node',
+            parameters=[{'param1': 10, 'param2': 'value'}],
+            remappings=[('/input', '/camera/image')],
+            output='screen'
+        )
+    ])
+```
+
+**Launch Commands**:
+
+```bash
+# Run launch file
+ros2 launch my_package my_launch.py
+
+# Run with arguments
+ros2 launch my_package my_launch.py use_sim_time:=true
+```
+
+## Python Node Template
+
+```python
+import rclpy
+from rclpy.node import Node
+from std_msgs.msg import String
+
+class MyNode(Node):
+    def __init__(self):
+        super().__init__('my_node')
+
+        # Parameters
+        self.declare_parameter('frequency', 10.0)
+        freq = self.get_parameter('frequency').value
+
+        # Publisher
+        self.publisher = self.create_publisher(String, 'output_topic', 10)
+
+        # Subscriber
+        self.subscription = self.create_subscription(
+            String, 'input_topic', self.callback, 10
+        )
+
+        # Timer
+        self.timer = self.create_timer(1.0/freq, self.timer_callback)
+
+        self.get_logger().info(f'Node initialized at {freq} Hz')
+
+    def callback(self, msg):
+        self.get_logger().info(f'Received: {msg.data}')
+
+    def timer_callback(self):
+        msg = String()
+        msg.data = 'Hello ROS 2'
+        self.publisher.publish(msg)
+
+def main(args=None):
+    rclpy.init(args=args)
+    node = MyNode()
+    rclpy.spin(node)
+    node.destroy_node()
+    rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()
+```
+
+## C++ Node Template
+
+```cpp
+#include "rclcpp/rclcpp.hpp"
+#include "std_msgs/msg/string.hpp"
+
+class MyNode : public rclcpp::Node
+{
+public:
+    MyNode() : Node("my_node")
+    {
+        // Parameters
+        this->declare_parameter("frequency", 10.0);
+        double freq = this->get_parameter("frequency").as_double();
+
+        // Publisher
+        publisher_ = this->create_publisher<std_msgs::msg::String>("output_topic", 10);
+
+        // Subscriber
+        subscription_ = this->create_subscription<std_msgs::msg::String>(
+            "input_topic", 10,
+            std::bind(&MyNode::callback, this, std::placeholders::_1));
+
+        // Timer
+        timer_ = this->create_wall_timer(
+            std::chrono::milliseconds(static_cast<int>(1000 / freq)),
+            std::bind(&MyNode::timer_callback, this));
+
+        RCLCPP_INFO(this->get_logger(), "Node initialized at %.1f Hz", freq);
+    }
+
+private:
+    void callback(const std_msgs::msg::String::SharedPtr msg)
+    {
+        RCLCPP_INFO(this->get_logger(), "Received: '%s'", msg->data.c_str());
+    }
+
+    void timer_callback()
+    {
+        auto msg = std_msgs::msg::String();
+        msg.data = "Hello ROS 2";
+        publisher_->publish(msg);
+    }
+
+    rclcpp::Publisher<std_msgs::msg::String>::SharedPtr publisher_;
+    rclcpp::Subscription<std_msgs::msg::String>::SharedPtr subscription_;
+    rclcpp::TimerBase::SharedPtr timer_;
+};
+
+int main(int argc, char *argv[])
+{
+    rclcpp::init(argc, argv);
+    rclcpp::spin(std::make_shared<MyNode>());
+    rclcpp::shutdown();
+    return 0;
+}
+```
+
+## Transforms (TF2)
+
+```bash
+# View transform tree
+ros2 run tf2_tools view_frames
+
+# Echo transform
+ros2 run tf2_ros tf2_echo base_link camera_link
+
+# Static transform publisher
+ros2 run tf2_ros static_transform_publisher 0 0 1 0 0 0 base_link camera_link
+```
+
+**Python TF2 Example**:
+
+```python
+from tf2_ros import TransformBroadcaster, Buffer, TransformListener
+from geometry_msgs.msg import TransformStamped
+
+# Broadcasting transforms
+broadcaster = TransformBroadcaster(self)
+
+t = TransformStamped()
+t.header.stamp = self.get_clock().now().to_msg()
+t.header.frame_id = 'world'
+t.child_frame_id = 'robot'
+t.transform.translation.x = 1.0
+t.transform.rotation.w = 1.0
+
+broadcaster.sendTransform(t)
+
+# Listening to transforms
+tf_buffer = Buffer()
+tf_listener = TransformListener(tf_buffer, self)
+
+transform = tf_buffer.lookup_transform('world', 'robot', rclpy.time.Time())
+```
+
+## Actions
+
+**Action Client Example**:
+
+```python
+from rclpy.action import ActionClient
+from example_interfaces.action import Fibonacci
+
+action_client = ActionClient(self, Fibonacci, 'fibonacci')
+action_client.wait_for_server()
+
+goal_msg = Fibonacci.Goal()
+goal_msg.order = 10
+
+future = action_client.send_goal_async(goal_msg)
+future.add_done_callback(self.goal_response_callback)
+```
+
+## Recording & Playback
+
+```bash
+# Record all topics
+ros2 bag record -a
+
+# Record specific topics
+ros2 bag record /camera/image /cmd_vel
+
+# Play bag file
+ros2 bag play my_bag/
+
+# Get bag info
+ros2 bag info my_bag/
+```
+
+## Debugging Tools
+
+```bash
+# RQt (GUI tools)
+rqt
+
+# RQt Graph (visualize nodes/topics)
+rqt_graph
+
+# Plot topic data
+ros2 run rqt_plot rqt_plot
+
+# RViz (3D visualization)
+rviz2
+
+# Robot State Publisher
+ros2 run robot_state_publisher robot_state_publisher --ros-args -p robot_description:="$(cat robot.urdf)"
+```
+
+## Common Message Types
+
+```bash
+# String
+std_msgs/msg/String
+
+# Numbers
+std_msgs/msg/Int32, Float64
+
+# Pose
+geometry_msgs/msg/Pose
+geometry_msgs/msg/PoseStamped
+
+# Twist (velocity)
+geometry_msgs/msg/Twist
+
+# Transform
+geometry_msgs/msg/TransformStamped
+
+# Image
+sensor_msgs/msg/Image
+
+# Point Cloud
+sensor_msgs/msg/PointCloud2
+
+# Joint State
+sensor_msgs/msg/JointState
+```
+
+## Quality of Service (QoS)
+
+```python
+from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
+
+# Sensor QoS (best effort, small history)
+sensor_qos = QoSProfile(
+    reliability=ReliabilityPolicy.BEST_EFFORT,
+    history=HistoryPolicy.KEEP_LAST,
+    depth=5
+)
+
+# Reliable QoS (for critical data)
+reliable_qos = QoSProfile(
+    reliability=ReliabilityPolicy.RELIABLE,
+    history=HistoryPolicy.KEEP_ALL
+)
+
+# Use in subscription
+self.create_subscription(Image, '/camera/image', callback, sensor_qos)
+```
+
+## Useful Aliases
+
+Add to `~/.bashrc`:
+
+```bash
+alias r2='source /opt/ros/humble/setup.bash'
+alias cb='colcon build --symlink-install'
+alias cw='cd ~/ros2_ws && source install/setup.bash'
+alias kn='ros2 node list'
+alias kt='ros2 topic list'
+```
+
+## Common Issues & Solutions
+
+**Issue**: `Package not found`
+```bash
+# Rebuild workspace
+cd ~/ros2_ws
+colcon build --packages-select my_package
+source install/setup.bash
+```
+
+**Issue**: `Transform lookup failed`
+```bash
+# Check TF tree
+ros2 run tf2_tools view_frames
+# Verify transform is being published
+ros2 topic echo /tf
+```
+
+**Issue**: `Cannot communicate between nodes`
+```bash
+# Check ROS_DOMAIN_ID matches
+echo $ROS_DOMAIN_ID
+
+# Set domain (0-232)
+export ROS_DOMAIN_ID=0
+```
