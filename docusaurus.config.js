@@ -9,10 +9,10 @@ const config = {
   tagline: 'Master the future of intelligent robotics through hands-on learning in ROS 2, Digital Twins, NVIDIA Isaac, and Vision-Language-Action systems',
   favicon: 'img/favicon.ico',
 
-  url: 'https://your-username.github.io',
+  url: 'https://mmaaz-497.github.io',
   baseUrl: '/hackathon-Physical-AI-Humanoid-Robotics-2/',
 
-  organizationName: 'your-username',
+  organizationName: 'Muhammad Maaz',
   projectName: 'hackathon-Physical-AI-Humanoid-Robotics-2',
 
   onBrokenLinks: 'throw',
@@ -36,7 +36,7 @@ const config = {
         docs: {
           routeBasePath: 'docs',
           sidebarPath: './sidebars.js',
-          editUrl: 'https://github.com/your-username/hackathon-Physical-AI-Humanoid-Robotics-2/tree/main/',
+          editUrl: 'https://github.com/mmaaz-497/hackathon-Physical-AI-Humanoid-Robotics-2/tree/main/',
         },
         blog: false,
         theme: {
@@ -64,7 +64,7 @@ const config = {
             label: 'Book',
           },
           {
-            href: 'https://github.com/your-username/hackathon-Physical-AI-Humanoid-Robotics-2',
+            href: 'https://github.com/mmaaz-497/hackathon-Physical-AI-Humanoid-Robotics-2',
             label: 'GitHub',
             position: 'right',
           },
@@ -116,7 +116,7 @@ const config = {
             items: [
               {
                 label: 'GitHub',
-                href: 'https://github.com/your-username/hackathon-Physical-AI-Humanoid-Robotics-2',
+                href: 'https://github.com/mmaaz-497/hackathon-Physical-AI-Humanoid-Robotics-2',
               },
             ],
           },
