@@ -13,7 +13,7 @@ const config = {
   baseUrl: '/Physical-AI-Humanoid-Robotics-Textbook/',
 
   organizationName: 'Muhammad Maaz',
-  projectName: 'hackathon-Physical-AI-Humanoid-Robotics',
+  projectName: 'Physical-AI-Humanoid-Robotics-Textbook',
 
   onBrokenLinks: 'throw',
 
@@ -36,7 +36,7 @@ const config = {
         docs: {
           routeBasePath: 'docs',
           sidebarPath: './sidebars.js',
-          editUrl: 'https://github.com/mmaaz-497/hackathon-Physical-AI-Humanoid-Robotics-2/tree/main/',
+          editUrl: 'https://github.com/mmaaz-497/Physical-AI-Humanoid-Robotics-Textbook/tree/main/',
         },
         blog: false,
         theme: {
@@ -64,7 +64,7 @@ const config = {
             label: 'Book',
           },
           {
-            href: 'https://github.com/mmaaz-497/hackathon-Physical-AI-Humanoid-Robotics-2',
+            href: 'https://github.com/mmaaz-497/Physical-AI-Humanoid-Robotics-Textbook',
             label: 'GitHub',
             position: 'right',
           },
@@ -116,7 +116,7 @@ const config = {
             items: [
               {
                 label: 'GitHub',
-                href: 'https://github.com/mmaaz-497/hackathon-Physical-AI-Humanoid-Robotics-2',
+                href: 'https://github.com/mmaaz-497/Physical-AI-Humanoid-Robotics-Textbook',
               },
             ],
           },
