@@ -10,10 +10,10 @@ const config = {
   favicon: 'img/favicon.ico',
 
   url: 'https://mmaaz-497.github.io',
-  baseUrl: '/hackathon-Physical-AI-Humanoid-Robotics-2/',
+  baseUrl: '/Physical-AI-Humanoid-Robotics-Textbook/',
 
   organizationName: 'Muhammad Maaz',
-  projectName: 'hackathon-Physical-AI-Humanoid-Robotics-2',
+  projectName: 'hackathon-Physical-AI-Humanoid-Robotics',
 
   onBrokenLinks: 'throw',
 
