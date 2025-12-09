@@ -9,8 +9,8 @@ const config = {
   tagline: 'Master the future of intelligent robotics through hands-on learning in ROS 2, Digital Twins, NVIDIA Isaac, and Vision-Language-Action systems',
   favicon: 'img/favicon.ico',
 
-  url: 'https://mmaaz-497.github.io',
-  baseUrl: '/Physical-AI-Humanoid-Robotics-Textbook/',
+ url: 'https://physical-ai-humanoid-robotics-textb-vert.vercel.app',
+ baseUrl: '/',
 
   organizationName: 'mmaaz-497',
   projectName: 'Physical-AI-Humanoid-Robotics-Textbook',
