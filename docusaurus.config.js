@@ -17,6 +17,13 @@ const config = {
 
   onBrokenLinks: 'throw',
 
+  customFields: {
+    // Chatbot API URL - set via environment variable CHATBOT_API_URL
+    // For Vercel: set this in your project's environment variables
+    // For local dev: defaults to localhost:8000
+    chatbotApiUrl: process.env.CHATBOT_API_URL || 'http://localhost:8000',
+  },
+
   i18n: {
     defaultLocale: 'en',
     locales: ['en'],
