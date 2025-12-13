@@ -1,7 +1,7 @@
 """
 FastAPI main application for the RAG Chatbot API.
 """
-
+import uvicorn
 import logging
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -191,6 +191,7 @@ if __name__ == "__main__":
         "src.main:app",
         host=settings.API_HOST,
         port=settings.API_PORT,
-        reload=True,
+        reload=False,
         log_level="info",
+        
     )
