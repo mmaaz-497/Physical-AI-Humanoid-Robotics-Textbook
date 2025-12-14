@@ -58,8 +58,8 @@ QDRANT_URL=https://your-cluster.qdrant.io
 QDRANT_API_KEY=your_qdrant_api_key
 QDRANT_COLLECTION=physical_ai_textbook
 
-OPENAI_API_KEY=sk-your_openai_api_key
-OPENAI_MODEL=gpt-4o-mini
+GEMINI_API_KEY=your_gemini_api_key
+GEMINI_MODEL=gemini-2.0-flash
 
 NEON_DATABASE_URL=postgresql://user:password@host:5432/database
 
@@ -180,7 +180,7 @@ services:
         sync: false
       - key: QDRANT_API_KEY
         sync: false
-      - key: OPENAI_API_KEY
+      - key: GEMINI_API_KEY
         sync: false
       - key: NEON_DATABASE_URL
         sync: false
@@ -192,7 +192,7 @@ services:
 fly launch
 fly secrets set QDRANT_URL=...
 fly secrets set QDRANT_API_KEY=...
-fly secrets set OPENAI_API_KEY=...
+fly secrets set GEMINI_API_KEY=...
 fly secrets set NEON_DATABASE_URL=...
 fly deploy
 ```
@@ -268,8 +268,8 @@ All configuration is managed via environment variables:
 | `QDRANT_URL` | Qdrant cluster URL | Yes | - |
 | `QDRANT_API_KEY` | Qdrant API key | Yes | - |
 | `QDRANT_COLLECTION` | Collection name | Yes | - |
-| `OPENAI_API_KEY` | OpenAI API key | Yes | - |
-| `OPENAI_MODEL` | Model to use | No | `gpt-4o-mini` |
+| `GEMINI_API_KEY` | Gemini API key | Yes | - |
+| `GEMINI_MODEL` | Model to use | No | `gemini-2.0-flash` |
 | `NEON_DATABASE_URL` | Postgres connection string | Yes | - |
 | `CORS_ORIGINS` | Allowed origins (comma-separated) | No | `http://localhost:3000` |
 | `SIMILARITY_THRESHOLD` | Minimum similarity score | No | `0.6` |

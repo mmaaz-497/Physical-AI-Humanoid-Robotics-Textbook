@@ -15,9 +15,9 @@ class Settings(BaseSettings):
     QDRANT_API_KEY: str
     QDRANT_COLLECTION: str
 
-    # OpenAI Configuration (OPTIONAL - only needed for answer generation)
-    OPENAI_API_KEY: Optional[str] = None
-    OPENAI_MODEL: str = "gpt-4o-mini"
+    # Gemini Configuration (OPTIONAL - only needed for answer generation)
+    GEMINI_API_KEY: Optional[str] = None
+    GEMINI_MODEL: str = "gemini-2.0-flash"
 
     # Database Configuration (OPTIONAL - only needed for chat logging)
     NEON_DATABASE_URL: Optional[str] = None

@@ -1,5 +1,6 @@
 """
-OpenAI service for answer generation with strict grounding constraints.
+Gemini service for answer generation with strict grounding constraints.
+Uses OpenAI SDK with Gemini's OpenAI-compatible endpoint.
 """
 
 import logging
@@ -32,13 +33,16 @@ Answer:"""
 
 
 class OpenAIService:
-    """Service for generating answers using OpenAI GPT models."""
+    """Service for generating answers using Gemini models via OpenAI-compatible endpoint."""
 
     def __init__(self):
-        """Initialize OpenAI client."""
-        self.client = OpenAI(api_key=settings.OPENAI_API_KEY)
-        self.model = settings.OPENAI_MODEL
-        logger.info(f"Initialized OpenAI service with model: {self.model}")
+        """Initialize Gemini client using OpenAI SDK."""
+        self.client = OpenAI(
+            api_key=settings.GEMINI_API_KEY,
+            base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
+        )
+        self.model = settings.GEMINI_MODEL
+        logger.info(f"Initialized Gemini service with model: {self.model}")
 
     def generate_answer(
         self,
@@ -148,7 +152,7 @@ class OpenAIService:
                 # Log token usage
                 usage = response.usage
                 logger.info(
-                    f"OpenAI API call successful. "
+                    f"Gemini API call successful. "
                     f"Tokens: {usage.prompt_tokens} prompt + {usage.completion_tokens} completion = {usage.total_tokens} total"
                 )
 
@@ -165,19 +169,19 @@ class OpenAIService:
                 else:
                     logger.error(f"Rate limit exceeded after {max_retries} attempts")
                     raise OpenAIRateLimitError(
-                        "OpenAI API rate limit exceeded. Please try again later.",
+                        "Gemini API rate limit exceeded. Please try again later.",
                         retry_after=60,
                     )
 
             except Exception as e:
-                logger.error(f"OpenAI API error: {str(e)}")
+                logger.error(f"Gemini API error: {str(e)}")
                 raise
 
         return "I encountered an error generating the answer. Please try again."
 
     def test_connection(self) -> bool:
         """
-        Test OpenAI API connection.
+        Test Gemini API connection.
 
         Returns:
             True if connection successful, False otherwise
@@ -189,8 +193,8 @@ class OpenAIService:
                 messages=[{"role": "user", "content": "Test"}],
                 max_tokens=5,
             )
-            logger.info("OpenAI API connection test successful")
+            logger.info("Gemini API connection test successful")
             return True
         except Exception as e:
-            logger.error(f"OpenAI API connection test failed: {str(e)}")
+            logger.error(f"Gemini API connection test failed: {str(e)}")
             return False

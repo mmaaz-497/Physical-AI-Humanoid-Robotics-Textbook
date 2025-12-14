@@ -16,7 +16,7 @@ services:
         sync: false
       - key: QDRANT_COLLECTION
         sync: false
-      - key: OPENAI_API_KEY
+      - key: GEMINI_API_KEY
         sync: false
       - key: CORS_ORIGINS
         value: "*"

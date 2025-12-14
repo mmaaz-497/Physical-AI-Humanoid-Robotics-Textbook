@@ -55,11 +55,11 @@ Click **"Advanced"** then add these variables one by one:
 3. **QDRANT_COLLECTION**
    - Value: `physical_ai_textbook`
 
-4. **OPENAI_API_KEY**
-   - Value: Your OpenAI API key (starts with `sk-`)
+4. **GEMINI_API_KEY**
+   - Value: Your Gemini API key
 
-5. **OPENAI_MODEL**
-   - Value: `gpt-4o-mini`
+5. **GEMINI_MODEL**
+   - Value: `gemini-2.0-flash`
 
 6. **CORS_ORIGINS**
    - Value: `https://physical-ai-humanoid-robotics-textb-vert.vercel.app`

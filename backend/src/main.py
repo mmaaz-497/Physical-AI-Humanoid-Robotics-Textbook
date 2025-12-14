@@ -59,8 +59,8 @@ async def qdrant_connection_error_handler(request, exc: QdrantConnectionError):
 
 @app.exception_handler(OpenAIRateLimitError)
 async def openai_rate_limit_error_handler(request, exc: OpenAIRateLimitError):
-    """Handle OpenAI rate limit errors."""
-    logger.error(f"OpenAI rate limit error: {exc.message}")
+    """Handle Gemini rate limit errors."""
+    logger.error(f"Gemini rate limit error: {exc.message}")
     return JSONResponse(
         status_code=429,
         content={
@@ -162,17 +162,17 @@ async def startup_event():
     except Exception as e:
         logger.error(f"✗ Failed to initialize Qdrant: {str(e)}")
 
-    # Test OpenAI connection
+    # Test Gemini connection
     try:
         from src.services.openai_service import OpenAIService
 
         openai = OpenAIService()
         if openai.test_connection():
-            logger.info("✓ OpenAI API connection successful")
+            logger.info("✓ Gemini API connection successful")
         else:
-            logger.warning("✗ OpenAI API connection test failed")
+            logger.warning("✗ Gemini API connection test failed")
     except Exception as e:
-        logger.error(f"✗ Failed to initialize OpenAI: {str(e)}")
+        logger.error(f"✗ Failed to initialize Gemini: {str(e)}")
 
     logger.info("API startup complete")
 

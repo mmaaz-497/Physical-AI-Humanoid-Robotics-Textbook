@@ -27,7 +27,7 @@ router = APIRouter(prefix="/api", tags=["query"])
 
 # Initialize services (singleton pattern)
 qdrant_service = QdrantService()
-openai_service = OpenAIService() if settings.OPENAI_API_KEY else None
+openai_service = OpenAIService() if settings.GEMINI_API_KEY else None
 grounding_service = GroundingService()
 database_service = DatabaseService()
 
@@ -77,7 +77,7 @@ async def query_chatbot(
                         question=request.q,
                         answer=answer,
                         retrieval_metadata={"mode": "selection_text", "text_length": len(request.selection_text)},
-                        model_used=settings.OPENAI_MODEL if openai_service else "retrieval-only",
+                        model_used=settings.GEMINI_MODEL if openai_service else "retrieval-only",
                     )
                 except Exception as db_error:
                     logger.error(f"Failed to log chat (non-fatal): {str(db_error)}")
@@ -108,7 +108,7 @@ async def query_chatbot(
                         question=request.q,
                         answer=refusal_message,
                         retrieval_metadata={"out_of_scope": True, "chunks_retrieved": 0},
-                        model_used=settings.OPENAI_MODEL if openai_service else "retrieval-only",
+                        model_used=settings.GEMINI_MODEL if openai_service else "retrieval-only",
                     )
                 except Exception as db_error:
                     logger.error(f"Failed to log chat (non-fatal): {str(db_error)}")

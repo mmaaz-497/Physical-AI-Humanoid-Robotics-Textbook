@@ -35,13 +35,13 @@ Render has a generous free tier that's perfect for your app.
    QDRANT_URL=<your-qdrant-cluster-url>
    QDRANT_API_KEY=<your-qdrant-api-key>
    QDRANT_COLLECTION=physical_ai_textbook
-   OPENAI_API_KEY=<your-openai-key>
-   OPENAI_MODEL=gpt-4o-mini
+   GEMINI_API_KEY=<your-gemini-key>
+   GEMINI_MODEL=gemini-2.0-flash
    CORS_ORIGINS=https://physical-ai-humanoid-robotics-textb-vert.vercel.app
    ```
 
    **Important Notes:**
-   - Use your actual Qdrant and OpenAI credentials
+   - Use your actual Qdrant and Gemini credentials
    - `CORS_ORIGINS` should match your Vercel frontend URL EXACTLY (no trailing slash)
    - You can find your frontend URL in Vercel dashboard
 
@@ -115,8 +115,8 @@ Fly.io also has a free tier with better performance (no sleep).
    fly secrets set QDRANT_URL="<your-qdrant-url>"
    fly secrets set QDRANT_API_KEY="<your-qdrant-key>"
    fly secrets set QDRANT_COLLECTION="physical_ai_textbook"
-   fly secrets set OPENAI_API_KEY="<your-openai-key>"
-   fly secrets set OPENAI_MODEL="gpt-4o-mini"
+   fly secrets set GEMINI_API_KEY="<your-gemini-key>"
+   fly secrets set GEMINI_MODEL="gemini-2.0-flash"
    fly secrets set CORS_ORIGINS="https://physical-ai-humanoid-robotics-textb-vert.vercel.app"
    ```
 
@@ -184,11 +184,11 @@ Required for all platforms:
 - `QDRANT_URL` - Your Qdrant cluster URL
 - `QDRANT_API_KEY` - Qdrant API key
 - `QDRANT_COLLECTION` - Collection name (e.g., "physical_ai_textbook")
-- `OPENAI_API_KEY` - OpenAI API key
+- `GEMINI_API_KEY` - Gemini API key
 - `CORS_ORIGINS` - Your frontend URL (comma-separated for multiple)
 
 Optional:
-- `OPENAI_MODEL` - Default: "gpt-4o-mini"
+- `GEMINI_MODEL` - Default: "gemini-2.0-flash"
 - `NEON_DATABASE_URL` - If using PostgreSQL for chat logging
 - `API_PORT` - Only needed for local development
 
