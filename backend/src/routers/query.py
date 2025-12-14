@@ -160,7 +160,7 @@ async def query_chatbot(
                     question=request.q,
                     answer=answer,
                     retrieval_metadata=retrieval_metadata,
-                    model_used=settings.OPENAI_MODEL if openai_service else "retrieval-only",
+                    model_used=settings.GEMINI_MODEL if openai_service else "retrieval-only",
                 )
             except Exception as db_error:
                 logger.error(f"Failed to log chat (non-fatal): {str(db_error)}")

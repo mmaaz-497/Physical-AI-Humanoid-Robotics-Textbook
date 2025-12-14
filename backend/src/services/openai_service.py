@@ -1,11 +1,12 @@
 """
 Gemini service for answer generation with strict grounding constraints.
-Uses OpenAI SDK with Gemini's OpenAI-compatible endpoint.
+Uses native Google Generative AI SDK.
 """
 
 import logging
 from typing import List
-from openai import OpenAI, RateLimitError
+import google.generativeai as genai
+from google.api_core import exceptions as google_exceptions
 import time
 
 from src.config import settings
@@ -33,16 +34,13 @@ Answer:"""
 
 
 class OpenAIService:
-    """Service for generating answers using Gemini models via OpenAI-compatible endpoint."""
+    """Service for generating answers using Gemini models via native SDK."""
 
     def __init__(self):
-        """Initialize Gemini client using OpenAI SDK."""
-        self.client = OpenAI(
-            api_key=settings.GEMINI_API_KEY,
-            base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
-        )
-        self.model = settings.GEMINI_MODEL
-        logger.info(f"Initialized Gemini service with model: {self.model}")
+        """Initialize Gemini client using native SDK."""
+        genai.configure(api_key=settings.GEMINI_API_KEY)
+        self.model = genai.GenerativeModel(settings.GEMINI_MODEL)
+        logger.info(f"Initialized Gemini service with model: {settings.GEMINI_MODEL}")
 
     def generate_answer(
         self,
@@ -122,7 +120,7 @@ class OpenAIService:
 
     def _call_openai_with_retry(self, prompt: str) -> str:
         """
-        Call OpenAI API with retry logic for rate limits.
+        Call Gemini API with retry logic for rate limits.
 
         Args:
             prompt: Complete prompt including system instructions and context
@@ -138,27 +136,27 @@ class OpenAIService:
 
         for attempt in range(max_retries):
             try:
-                response = self.client.chat.completions.create(
-                    model=self.model,
-                    messages=[
-                        {"role": "user", "content": prompt}
-                    ],
-                    temperature=0.3,  # Low temperature for consistency
-                    max_tokens=500,
+                response = self.model.generate_content(
+                    prompt,
+                    generation_config=genai.types.GenerationConfig(
+                        temperature=0.3,  # Low temperature for consistency
+                        max_output_tokens=500,
+                    )
                 )
 
-                answer = response.choices[0].message.content.strip()
+                answer = response.text.strip()
 
                 # Log token usage
-                usage = response.usage
                 logger.info(
                     f"Gemini API call successful. "
-                    f"Tokens: {usage.prompt_tokens} prompt + {usage.completion_tokens} completion = {usage.total_tokens} total"
+                    f"Tokens: {response.usage_metadata.prompt_token_count} prompt + "
+                    f"{response.usage_metadata.candidates_token_count} completion = "
+                    f"{response.usage_metadata.total_token_count} total"
                 )
 
                 return answer
 
-            except RateLimitError as e:
+            except google_exceptions.ResourceExhausted as e:
                 if attempt < max_retries - 1:
                     wait_time = retry_delay * (2 ** attempt)
                     logger.warning(
@@ -188,10 +186,9 @@ class OpenAIService:
         """
         try:
             # Make a minimal API call to test
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[{"role": "user", "content": "Test"}],
-                max_tokens=5,
+            response = self.model.generate_content(
+                "Test",
+                generation_config=genai.types.GenerationConfig(max_output_tokens=5)
             )
             logger.info("Gemini API connection test successful")
             return True

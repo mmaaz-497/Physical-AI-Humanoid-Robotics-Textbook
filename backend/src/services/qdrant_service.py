@@ -20,16 +20,25 @@ class QdrantService:
     """Service for interacting with Qdrant vector database."""
 
     def __init__(self):
-        """Initialize Qdrant client and FastEmbed model for embeddings."""
+        """Initialize Qdrant client (lazy-load embedding model to save memory)."""
         self.client = QdrantClient(
             url=settings.QDRANT_URL,
             api_key=settings.QDRANT_API_KEY,
             timeout=30.0,  # Increased timeout
         )
         self.collection_name = settings.QDRANT_COLLECTION
-        # Use the same embedding model as the upload script
-        self.embedding_model = TextEmbedding(model_name="BAAI/bge-small-en-v1.5")
+        # Lazy-load embedding model to save memory (only load when first query is made)
+        self._embedding_model = None
         logger.info(f"Qdrant service initialized for collection: {self.collection_name}")
+
+    @property
+    def embedding_model(self) -> TextEmbedding:
+        """Lazy-load the embedding model only when first needed."""
+        if self._embedding_model is None:
+            logger.info("Loading FastEmbed model (BAAI/bge-small-en-v1.5)...")
+            self._embedding_model = TextEmbedding(model_name="BAAI/bge-small-en-v1.5")
+            logger.info("FastEmbed model loaded successfully")
+        return self._embedding_model
 
     def generate_query_embedding(self, query: str) -> List[float]:
         """

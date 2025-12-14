@@ -146,34 +146,13 @@ async def root():
 # Startup event
 @app.on_event("startup")
 async def startup_event():
-    """Application startup - validate connections."""
+    """Application startup - deferred connection validation to save memory."""
     logger.info("Starting Physical AI RAG Chatbot API")
     logger.info(f"CORS origins: {settings.cors_origins_list}")
 
-    # Test Qdrant connection
-    try:
-        from src.services.qdrant_service import QdrantService
-
-        qdrant = QdrantService()
-        if qdrant.test_connection():
-            logger.info("✓ Qdrant connection successful")
-        else:
-            logger.warning("✗ Qdrant connection test failed")
-    except Exception as e:
-        logger.error(f"✗ Failed to initialize Qdrant: {str(e)}")
-
-    # Test Gemini connection
-    try:
-        from src.services.openai_service import OpenAIService
-
-        openai = OpenAIService()
-        if openai.test_connection():
-            logger.info("✓ Gemini API connection successful")
-        else:
-            logger.warning("✗ Gemini API connection test failed")
-    except Exception as e:
-        logger.error(f"✗ Failed to initialize Gemini: {str(e)}")
-
+    # Connection tests deferred to first request to avoid loading heavy models at startup
+    # This keeps memory usage low on free-tier deployments (e.g., Render 512MB limit)
+    logger.info("Deferring service initialization to first request (memory optimization)")
     logger.info("API startup complete")
 
 
