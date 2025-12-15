@@ -1,0 +1,38 @@
+{
+  "name": "auth-service",
+  "version": "1.0.0",
+  "description": "Better Auth authentication service for Physical AI Humanoid Robotics Book",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "test": "vitest",
+    "test:coverage": "vitest --coverage",
+    "migrate": "drizzle-kit generate",
+    "migrate:push": "drizzle-kit push",
+    "generate": "drizzle-kit generate"
+  },
+  "keywords": [
+    "auth",
+    "better-auth",
+    "authentication",
+    "typescript"
+  ],
+  "author": "GIAIC",
+  "license": "MIT",
+  "dependencies": {
+    "better-auth": "^1.0.9",
+    "drizzle-orm": "^0.41.0",
+    "postgres": "^3.4.5",
+    "hono": "^4.7.11"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "drizzle-kit": "^0.31.8",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}
