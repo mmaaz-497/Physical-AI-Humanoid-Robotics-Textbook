@@ -3,7 +3,7 @@
  * This client communicates with the auth-service for authentication
  */
 
-import { createAuthClient } from 'better-auth/react';
+import { createAuthClient } from 'better-auth/client';
 
 // Get auth service URL from environment or default to localhost
 const authServiceUrl =

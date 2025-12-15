@@ -24,11 +24,10 @@
   "author": "GIAIC",
   "license": "MIT",
   "dependencies": {
-    "@better-auth/react": "^1.0.9",
     "@docusaurus/core": "^3.9.2",
     "@docusaurus/preset-classic": "^3.9.2",
     "@qdrant/js-client-rest": "^1.16.2",
-    "better-auth": "^1.0.9",
+    "better-auth": "^1.4.7",
     "clsx": "^2.1.1",
     "dotenv": "^17.2.3",
     "prism-react-renderer": "^2.4.1",
