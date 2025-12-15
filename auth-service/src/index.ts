@@ -1,4 +1,8 @@
+// Load environment variables from .env file
+import 'dotenv/config';
+
 import { Hono } from 'hono';
+import { serve } from '@hono/node-server';
 import { auth } from './lib/auth.js';
 import { corsMiddleware } from './middleware/cors.js';
 import { rateLimiter, securityHeaders, requestLogger, bodySizeLimit } from './middleware/security.js';
@@ -53,7 +57,9 @@ console.log(`🔐 CORS origins: ${process.env.CORS_ORIGINS || 'http://localhost:
 console.log(`🛡️  Security features enabled: rate limiting, security headers, request logging`);
 console.log(`⚡ Rate limits: 5 signups/min, 10 signins/min, 30 other/min`);
 
-export default {
-  port,
+serve({
   fetch: app.fetch,
-};
+  port,
+});
+
+console.log(`✅ Auth service listening on http://localhost:${port}`);
