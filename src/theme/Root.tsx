@@ -5,7 +5,6 @@
 
 import React, { useEffect } from 'react';
 import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
-import { authClient } from '../lib/auth-client';
 
 export default function Root({ children }: { children: React.ReactNode }) {
   const { siteConfig } = useDocusaurusContext();
@@ -43,6 +42,6 @@ export default function Root({ children }: { children: React.ReactNode }) {
     };
   }, [siteConfig]);
 
-  // Wrap children with Better Auth SessionProvider
-  return <authClient.SessionProvider>{children}</authClient.SessionProvider>;
+  // Return children directly (SessionProvider not needed with Better Auth client)
+  return <>{children}</>;
 }

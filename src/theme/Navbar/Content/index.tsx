@@ -61,33 +61,38 @@ function NavbarContentLayout({
 }
 
 function AuthButtons() {
-  const { data: session, isPending } = useSession();
+  try {
+    const { data: session, isPending } = useSession();
 
-  if (isPending) {
-    return (
-      <div className={styles.authButtons}>
-        <span className={styles.authLoading}>Loading...</span>
-      </div>
-    );
-  }
+    if (isPending) {
+      return (
+        <div className={styles.authButtons}>
+          <span className={styles.authLoading}>Loading...</span>
+        </div>
+      );
+    }
 
-  if (session?.user) {
-    return (
-      <div className={styles.authButtons}>
-        <span className={styles.userEmail}>
-          {session.user.name || session.user.email}
-        </span>
-        <button
-          onClick={async () => {
-            const { authClient } = await import('../../../lib/auth-client');
-            await authClient.signOut();
-            window.location.href = '/';
-          }}
-          className={styles.authButton}>
-          Logout
-        </button>
-      </div>
-    );
+    if (session?.user) {
+      return (
+        <div className={styles.authButtons}>
+          <span className={styles.userEmail}>
+            {session.user.name || session.user.email}
+          </span>
+          <button
+            onClick={async () => {
+              const { authClient } = await import('../../../lib/auth-client');
+              await authClient.signOut();
+              window.location.href = '/';
+            }}
+            className={styles.authButton}>
+            Logout
+          </button>
+        </div>
+      );
+    }
+  } catch (error) {
+    console.error('Auth error:', error);
+    // Fall through to show sign in/up buttons
   }
 
   return (
