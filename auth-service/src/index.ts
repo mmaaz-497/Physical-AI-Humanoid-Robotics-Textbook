@@ -17,17 +17,18 @@ app.use('*', corsMiddleware);
 app.use('*', bodySizeLimit(1024 * 200)); // 200KB max body size
 
 // Apply rate limiting to auth endpoints only (more strict)
-app.use('/api/auth/signup/**', rateLimiter({ maxRequests: 5, windowMs: 60 * 1000 })); // 5 signups per minute
-app.use('/api/auth/signin/**', rateLimiter({ maxRequests: 10, windowMs: 60 * 1000 })); // 10 signins per minute
-app.use('/api/auth/**', rateLimiter({ maxRequests: 30, windowMs: 60 * 1000 })); // 30 requests per minute for other endpoints
+app.use('/api/auth/signup/*', rateLimiter({ maxRequests: 5, windowMs: 60 * 1000 })); // 5 signups per minute
+app.use('/api/auth/signin/*', rateLimiter({ maxRequests: 10, windowMs: 60 * 1000 })); // 10 signins per minute
+app.use('/api/auth/*', rateLimiter({ maxRequests: 30, windowMs: 60 * 1000 })); // 30 requests per minute for other endpoints
 
 // Health check endpoint
 app.get('/health', (c) => {
   return c.json({ status: 'ok', service: 'auth-service', timestamp: new Date().toISOString() });
 });
 
-// Mount Better Auth routes at /api/auth
-app.on(['POST', 'GET'], '/api/auth/**', (c) => {
+// Mount Better Auth routes at /api/auth/* (handle all HTTP methods)
+// Note: Use single asterisk (*) for Hono routing pattern
+app.on(['POST', 'GET'], '/api/auth/*', (c) => {
   return auth.handler(c.req.raw);
 });
 

@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  # Better Auth Service (Node.js/TypeScript)
+  auth-service:
+    build:
+      context: ./auth-service
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      - DATABASE_URL=${NEON_DATABASE_URL}
+      - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET:-change-this-secret}
+      - BETTER_AUTH_URL=http://localhost:3001
+      - PORT=3001
+      - NODE_ENV=development
+      - CORS_ORIGINS=http://localhost:3000
+      - SESSION_EXPIRES_IN=604800
+      - SESSION_UPDATE_AGE=86400
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  # FastAPI Backend (Existing)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - QDRANT_URL=${QDRANT_URL}
+      - QDRANT_API_KEY=${QDRANT_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - NEON_DATABASE_URL=${NEON_DATABASE_URL}
+      - BETTER_AUTH_JWT_SECRET=${BETTER_AUTH_SECRET:-change-this-secret}
+      - CORS_ORIGINS=http://localhost:3000,http://localhost:3001
+      - API_HOST=0.0.0.0
+      - API_PORT=8000
+    depends_on:
+      - auth-service
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  # Docusaurus Frontend (for reference, usually run separately with npm start)
+  # frontend:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile.docusaurus
+  #   ports:
+  #     - "3000:3000"
+  #   environment:
+  #     - NODE_ENV=development
+  #   networks:
+  #     - app-network
+  #   restart: unless-stopped
+
+networks:
+  app-network:
+    driver: bridge

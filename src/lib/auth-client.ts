@@ -3,7 +3,7 @@
  * This client communicates with the auth-service for authentication
  */
 
-import { createAuthClient } from 'better-auth/client';
+import { createAuthClient } from 'better-auth/react';
 
 // Get auth service URL from environment or default to localhost
 const getAuthServiceUrl = () => {
@@ -19,7 +19,7 @@ export const authClient = createAuthClient({
   baseURL: getAuthServiceUrl(),
 });
 
-// Export individual items from authClient to avoid circular dependencies
+// Export React hooks from the client
 export const useSession = authClient.useSession;
 export const signIn = authClient.signIn;
 export const signUp = authClient.signUp;
