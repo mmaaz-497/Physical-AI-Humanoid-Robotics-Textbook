@@ -10,6 +10,8 @@ from sqlalchemy.orm import Session
 from src.database import get_db
 from src.models.request import QueryRequest
 from src.models.response import QueryResponse
+from src.middleware.auth import get_current_user_optional
+from src.models.auth_schemas import CurrentUser
 from src.services.qdrant_service import QdrantService
 from src.services.openai_service import OpenAIService
 from src.services.grounding_service import GroundingService
@@ -36,16 +38,19 @@ database_service = DatabaseService()
 async def query_chatbot(
     request: QueryRequest,
     db: Optional[Session] = Depends(get_db),
+    current_user: Optional[CurrentUser] = Depends(get_current_user_optional),
 ) -> QueryResponse:
     """
     Query endpoint for the RAG chatbot.
 
     Retrieves relevant context from Qdrant, generates grounded answer using OpenAI,
-    and logs the interaction to the database.
+    and logs the interaction to the database. Optionally accepts authentication
+    to track user activity and personalize responses based on experience level.
 
     Args:
         request: QueryRequest containing question, top_k, and optional selection_text
         db: Database session dependency
+        current_user: Optional authenticated user (from JWT token)
 
     Returns:
         QueryResponse with answer, citations, and confidence score
@@ -53,7 +58,16 @@ async def query_chatbot(
     Raises:
         HTTPException: 503 if Qdrant/OpenAI unavailable, 429 if rate limited, 400 if invalid query
     """
-    logger.info(f"Received query: {request.q[:50]}...")
+    # Log query with optional user information
+    if current_user:
+        logger.info(
+            f"Received query from authenticated user: {current_user.email} "
+            f"(experience: {current_user.experience_level}, role: {current_user.professional_role})"
+        )
+    else:
+        logger.info(f"Received query from anonymous user")
+
+    logger.info(f"Query: {request.q[:50]}...")
 
     try:
         # Case 1: Selection text provided - bypass Qdrant retrieval
@@ -72,11 +86,21 @@ async def query_chatbot(
             # Log to database (if configured)
             if settings.NEON_DATABASE_URL:
                 try:
+                    retrieval_metadata = {
+                        "mode": "selection_text",
+                        "text_length": len(request.selection_text),
+                    }
+                    # Add user metadata if authenticated
+                    if current_user:
+                        retrieval_metadata["user_id"] = current_user.id
+                        retrieval_metadata["user_experience_level"] = current_user.experience_level
+                        retrieval_metadata["user_professional_role"] = current_user.professional_role
+
                     database_service.insert_chat_log(
                         db=db,
                         question=request.q,
                         answer=answer,
-                        retrieval_metadata={"mode": "selection_text", "text_length": len(request.selection_text)},
+                        retrieval_metadata=retrieval_metadata,
                         model_used=settings.GEMINI_MODEL if openai_service else "retrieval-only",
                     )
                 except Exception as db_error:
@@ -103,11 +127,21 @@ async def query_chatbot(
             # Log refusal (if database configured)
             if settings.NEON_DATABASE_URL:
                 try:
+                    retrieval_metadata = {
+                        "out_of_scope": True,
+                        "chunks_retrieved": 0,
+                    }
+                    # Add user metadata if authenticated
+                    if current_user:
+                        retrieval_metadata["user_id"] = current_user.id
+                        retrieval_metadata["user_experience_level"] = current_user.experience_level
+                        retrieval_metadata["user_professional_role"] = current_user.professional_role
+
                     database_service.insert_chat_log(
                         db=db,
                         question=request.q,
                         answer=refusal_message,
-                        retrieval_metadata={"out_of_scope": True, "chunks_retrieved": 0},
+                        retrieval_metadata=retrieval_metadata,
                         model_used=settings.GEMINI_MODEL if openai_service else "retrieval-only",
                     )
                 except Exception as db_error:
@@ -154,6 +188,11 @@ async def query_chatbot(
                     "similarity_scores": [chunk.similarity_score for chunk in context_chunks],
                     "qdrant_ids": [chunk.qdrant_id for chunk in context_chunks],
                 }
+                # Add user metadata if authenticated
+                if current_user:
+                    retrieval_metadata["user_id"] = current_user.id
+                    retrieval_metadata["user_experience_level"] = current_user.experience_level
+                    retrieval_metadata["user_professional_role"] = current_user.professional_role
 
                 database_service.insert_chat_log(
                     db=db,

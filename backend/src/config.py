@@ -22,6 +22,9 @@ class Settings(BaseSettings):
     # Database Configuration (OPTIONAL - only needed for chat logging)
     NEON_DATABASE_URL: Optional[str] = None
 
+    # Authentication Configuration
+    BETTER_AUTH_JWT_SECRET: Optional[str] = None
+
     # API Configuration
     CORS_ORIGINS: str = "http://localhost:3000"
     API_HOST: str = "0.0.0.0"

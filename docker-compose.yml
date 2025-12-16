@@ -1,0 +1,132 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database (shared by auth service and backend)
+  postgres:
+    image: postgres:16-alpine
+    container_name: physical-ai-postgres
+    environment:
+      POSTGRES_USER: physical_ai_user
+      POSTGRES_PASSWORD: physical_ai_password
+      POSTGRES_DB: physical_ai_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./auth-service/migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U physical_ai_user -d physical_ai_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - physical-ai-network
+
+  # Authentication Service (Better Auth)
+  auth-service:
+    build:
+      context: ./auth-service
+      dockerfile: Dockerfile
+    container_name: physical-ai-auth
+    environment:
+      DATABASE_URL: postgresql://physical_ai_user:physical_ai_password@postgres:5432/physical_ai_db
+      BETTER_AUTH_SECRET: dev-secret-key-change-in-production-use-openssl-rand-base64-32
+      BETTER_AUTH_URL: http://localhost:3001
+      PORT: 3001
+      NODE_ENV: development
+      CORS_ORIGINS: http://localhost:3000,http://localhost:8000
+      SESSION_EXPIRES_IN: 604800
+      SESSION_UPDATE_AGE: 86400
+    ports:
+      - "3001:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./auth-service/src:/app/src
+      - /app/node_modules
+    command: npm run dev
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - physical-ai-network
+
+  # Backend API (FastAPI)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: physical-ai-backend
+    environment:
+      # Qdrant Configuration (use your actual values)
+      QDRANT_URL: ${QDRANT_URL:-https://your-cluster.qdrant.io}
+      QDRANT_API_KEY: ${QDRANT_API_KEY:-your_api_key}
+      QDRANT_COLLECTION: physical_ai_textbook
+
+      # Gemini Configuration
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      GEMINI_MODEL: gemini-2.0-flash
+
+      # Database Configuration
+      NEON_DATABASE_URL: postgresql://physical_ai_user:physical_ai_password@postgres:5432/physical_ai_db
+
+      # Authentication Configuration
+      BETTER_AUTH_JWT_SECRET: dev-secret-key-change-in-production-use-openssl-rand-base64-32
+
+      # API Configuration
+      CORS_ORIGINS: http://localhost:3000
+      API_HOST: 0.0.0.0
+      API_PORT: 8000
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      auth-service:
+        condition: service_healthy
+    volumes:
+      - ./backend/src:/app/src
+    command: uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - physical-ai-network
+
+  # Frontend (Docusaurus) - Optional for local development
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: physical-ai-frontend
+    environment:
+      AUTH_SERVICE_URL: http://localhost:3001
+      CHATBOT_API_URL: http://localhost:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - auth-service
+      - backend
+    volumes:
+      - ./src:/app/src
+      - ./docs:/app/docs
+      - ./blog:/app/blog
+      - ./static:/app/static
+      - /app/node_modules
+      - /app/.docusaurus
+    command: npm start
+    networks:
+      - physical-ai-network
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  physical-ai-network:
+    driver: bridge

@@ -1,0 +1,507 @@
+openapi: 3.0.3
+info:
+  title: Authentication API
+  description: |
+    Authentication API for the Physical AI Humanoid Robotics Documentation Platform.
+
+    Implements signup, signin, logout, and session management using JWT access tokens
+    and HTTP-only refresh token cookies.
+  version: 1.0.0
+  contact:
+    name: API Support
+    email: support@example.com
+
+servers:
+  - url: http://localhost:8000
+    description: Local development
+  - url: https://api.yourdomain.com
+    description: Production API
+
+tags:
+  - name: Authentication
+    description: User authentication operations
+
+paths:
+  /auth/signup:
+    post:
+      tags:
+        - Authentication
+      summary: Register a new user account
+      description: |
+        Creates a new user account with email/password and collects background
+        information for content personalization. Returns access token and sets
+        refresh token cookie.
+      operationId: signup
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignupRequest'
+            example:
+              email: user@example.com
+              password: SecureP@ssw0rd
+              experience_level: intermediate
+              professional_role: student
+              organization: MIT
+      responses:
+        '201':
+          description: Account created successfully
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+                example: refresh_token=<token>; HttpOnly; Secure; SameSite=None; Max-Age=604800; Path=/auth
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+              example:
+                access_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                token_type: bearer
+                user:
+                  id: 550e8400-e29b-41d4-a716-446655440000
+                  email: user@example.com
+                  is_active: true
+                  is_verified: false
+                  created_at: '2025-12-14T10:30:00Z'
+                  last_login_at: '2025-12-14T10:30:00Z'
+                profile:
+                  experience_level: intermediate
+                  professional_role: student
+                  role_other: null
+                  organization: MIT
+                  created_at: '2025-12-14T10:30:00Z'
+        '400':
+          description: Invalid input data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                weakPassword:
+                  value:
+                    detail: Password must be at least 8 characters with uppercase, lowercase, digit, and special character
+                invalidEmail:
+                  value:
+                    detail: Invalid email format
+                missingRoleOther:
+                  value:
+                    detail: role_other is required when professional_role is "other"
+        '409':
+          description: Email already registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                detail: An account with this email already exists
+        '429':
+          description: Too many signup attempts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                detail: Too many signup attempts. Please try again later.
+
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: Sign in to an existing account
+      description: |
+        Authenticates user with email and password. Returns access token and
+        sets refresh token cookie. Updates last_login_at timestamp.
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            example:
+              email: user@example.com
+              password: SecureP@ssw0rd
+      responses:
+        '200':
+          description: Login successful
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+                example: refresh_token=<token>; HttpOnly; Secure; SameSite=None; Max-Age=604800; Path=/auth
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+              example:
+                access_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                token_type: bearer
+                user:
+                  id: 550e8400-e29b-41d4-a716-446655440000
+                  email: user@example.com
+                  is_active: true
+                  is_verified: false
+                  created_at: '2025-12-01T10:00:00Z'
+                  last_login_at: '2025-12-14T11:45:00Z'
+                profile:
+                  experience_level: intermediate
+                  professional_role: student
+                  role_other: null
+                  organization: MIT
+                  created_at: '2025-12-01T10:00:00Z'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                detail: Invalid email or password
+        '403':
+          description: Account inactive or suspended
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                detail: Your account has been suspended. Please contact support.
+        '429':
+          description: Too many login attempts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                detail: Too many login attempts. Please try again in 5 minutes.
+
+  /auth/logout:
+    post:
+      tags:
+        - Authentication
+      summary: Sign out and revoke refresh token
+      description: |
+        Logs out the current user by revoking their refresh token. Requires
+        valid access token. Clears the refresh_token cookie.
+      operationId: logout
+      security:
+        - BearerAuth: []
+      responses:
+        '204':
+          description: Logout successful
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+                example: refresh_token=; HttpOnly; Secure; SameSite=None; Max-Age=0; Path=/auth
+        '401':
+          description: Unauthorized (invalid or missing token)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                detail: Not authenticated
+
+  /auth/refresh:
+    post:
+      tags:
+        - Authentication
+      summary: Refresh access token
+      description: |
+        Exchanges a valid refresh token for a new access token. Refresh token
+        is read from HTTP-only cookie. Returns new access token and optionally
+        rotates refresh token.
+      operationId: refresh
+      requestBody:
+        description: Refresh token is sent via cookie (no body required)
+        required: false
+      responses:
+        '200':
+          description: Token refreshed successfully
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+                example: refresh_token=<new_token>; HttpOnly; Secure; SameSite=None; Max-Age=604800; Path=/auth
+              description: New refresh token (if rotation enabled)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefreshResponse'
+              example:
+                access_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                token_type: bearer
+        '401':
+          description: Invalid or expired refresh token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                expired:
+                  value:
+                    detail: Refresh token has expired. Please log in again.
+                revoked:
+                  value:
+                    detail: Refresh token has been revoked. Please log in again.
+                invalid:
+                  value:
+                    detail: Invalid refresh token. Please log in again.
+
+  /auth/me:
+    get:
+      tags:
+        - Authentication
+      summary: Get current user profile
+      description: |
+        Returns the currently authenticated user's account information and
+        profile data. Requires valid access token.
+      operationId: getCurrentUser
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: User profile retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MeResponse'
+              example:
+                user:
+                  id: 550e8400-e29b-41d4-a716-446655440000
+                  email: user@example.com
+                  is_active: true
+                  is_verified: false
+                  created_at: '2025-12-01T10:00:00Z'
+                  last_login_at: '2025-12-14T11:45:00Z'
+                profile:
+                  experience_level: intermediate
+                  professional_role: student
+                  role_other: null
+                  organization: MIT
+                  created_at: '2025-12-01T10:00:00Z'
+        '401':
+          description: Unauthorized (invalid or missing token)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                detail: Not authenticated
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT access token obtained from /auth/login or /auth/signup
+
+  schemas:
+    SignupRequest:
+      type: object
+      required:
+        - email
+        - password
+        - experience_level
+        - professional_role
+      properties:
+        email:
+          type: string
+          format: email
+          description: User's email address (used for login)
+          example: user@example.com
+          maxLength: 255
+        password:
+          type: string
+          format: password
+          description: User's password (min 8 chars, must include uppercase, lowercase, digit, special char)
+          example: SecureP@ssw0rd
+          minLength: 8
+          maxLength: 128
+        experience_level:
+          $ref: '#/components/schemas/ExperienceLevel'
+        professional_role:
+          $ref: '#/components/schemas/ProfessionalRole'
+        role_other:
+          type: string
+          description: Custom role description (required if professional_role is "other")
+          example: Robotics Consultant
+          maxLength: 100
+        organization:
+          type: string
+          description: User's organization or affiliation (optional)
+          example: MIT Media Lab
+          maxLength: 255
+
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          description: User's email address
+          example: user@example.com
+        password:
+          type: string
+          format: password
+          description: User's password
+          example: SecureP@ssw0rd
+
+    AuthResponse:
+      type: object
+      required:
+        - access_token
+        - token_type
+        - user
+      properties:
+        access_token:
+          type: string
+          description: JWT access token (expires in 30 minutes)
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        token_type:
+          type: string
+          description: Token type (always "bearer")
+          example: bearer
+          default: bearer
+        user:
+          $ref: '#/components/schemas/UserResponse'
+        profile:
+          $ref: '#/components/schemas/UserProfileResponse'
+
+    RefreshResponse:
+      type: object
+      required:
+        - access_token
+        - token_type
+      properties:
+        access_token:
+          type: string
+          description: New JWT access token (expires in 30 minutes)
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        token_type:
+          type: string
+          description: Token type (always "bearer")
+          example: bearer
+          default: bearer
+
+    MeResponse:
+      type: object
+      required:
+        - user
+      properties:
+        user:
+          $ref: '#/components/schemas/UserResponse'
+        profile:
+          $ref: '#/components/schemas/UserProfileResponse'
+
+    UserResponse:
+      type: object
+      required:
+        - id
+        - email
+        - is_active
+        - is_verified
+        - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique user identifier
+          example: 550e8400-e29b-41d4-a716-446655440000
+        email:
+          type: string
+          format: email
+          description: User's email address
+          example: user@example.com
+        is_active:
+          type: boolean
+          description: Account active status
+          example: true
+        is_verified:
+          type: boolean
+          description: Email verification status
+          example: false
+        created_at:
+          type: string
+          format: date-time
+          description: Account creation timestamp
+          example: '2025-12-01T10:00:00Z'
+        last_login_at:
+          type: string
+          format: date-time
+          description: Last successful login timestamp
+          example: '2025-12-14T11:45:00Z'
+          nullable: true
+
+    UserProfileResponse:
+      type: object
+      required:
+        - experience_level
+        - professional_role
+        - created_at
+      properties:
+        experience_level:
+          $ref: '#/components/schemas/ExperienceLevel'
+        professional_role:
+          $ref: '#/components/schemas/ProfessionalRole'
+        role_other:
+          type: string
+          description: Custom role description (present if professional_role is "other")
+          example: Robotics Consultant
+          nullable: true
+        organization:
+          type: string
+          description: User's organization or affiliation
+          example: MIT Media Lab
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          description: Profile creation timestamp
+          example: '2025-12-01T10:00:00Z'
+
+    ExperienceLevel:
+      type: string
+      enum:
+        - beginner
+        - intermediate
+        - advanced
+      description: |
+        User's experience level with Physical AI and Robotics:
+        - beginner: New to the field
+        - intermediate: Some hands-on experience
+        - advanced: Professional or research experience
+      example: intermediate
+
+    ProfessionalRole:
+      type: string
+      enum:
+        - student
+        - researcher
+        - engineer
+        - hobbyist
+        - other
+      description: |
+        User's professional role or use case:
+        - student: Learning for academic purposes
+        - researcher: Conducting research in robotics/AI
+        - engineer: Working in industry
+        - hobbyist: Personal interest and projects
+        - other: Custom role (must provide role_other)
+      example: student
+
+    ErrorResponse:
+      type: object
+      required:
+        - detail
+      properties:
+        detail:
+          type: string
+          description: Human-readable error message
+          example: Invalid email or password
